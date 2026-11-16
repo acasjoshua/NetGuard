@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}NetGuard - User Profile Management{% endblock %}
+{% block page_title %}User Profile{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="content-title-block">
+        <h2>Security Analyst Profile</h2>
+        <p>Scope B.1: View and manage your account details, organization roles, and operator avatar.</p>
+    </div>
+</div>
+
+{% if success_msg %}
+<div class="flash-messages">
+    <div class="flash-banner success">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>{{ success_msg }}</span>
+    </div>
+</div>
+{% endif %}
+
+<div class="dashboard-grid-2">
+    <!-- Profile Edit Form -->
+    <div class="content-card">
+        <div class="card-header">
+            <div class="card-title-group">
+                <i class="fa-solid fa-user-pen"></i>
+                <h3>Edit Profile Information</h3>
+            </div>
+            <span class="pill pill-info">Account ID: #{{ request.user.id }}</span>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="dashboard-grid-equal" style="margin-bottom: 0;">
+                    <div class="form-group">
+                        <label class="form-label">Username (System Identifier)</label>
+                        <input type="text" class="form-control" value="{{ request.user.username }}" disabled style="opacity: 0.7;">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" name="full_name" class="form-control" value="{{ profile.full_name }}" placeholder="e.g. Security Analyst Acas" required>
+                    </div>
+                </div>
+
+                <div class="dashboard-grid-equal" style="margin-bottom: 0;">
+                    <div class="form-group">
+                        <label class="form-label">Official Contact Email</label>
+                        <input type="email" name="email_contact" class="form-control" value="{{ profile.email_contact }}" placeholder="analyst@domain.edu">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Security Role / Title</label>
+                        <input type="text" name="role" class="form-control" value="{{ profile.role }}" placeholder="e.g. Network Security Analyst">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Department / Organization</label>
+                    <input type="text" name="organization" class="form-control" value="{{ profile.organization }}" placeholder="e.g. NetGuard Operations Lab">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Professional Bio / Mission</label>
+                    <textarea name="bio" class="form-control" rows="3" placeholder="Brief statement regarding assigned network security responsibilities...">{{ profile.bio }}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Avatar Badge Accent Color</label>
+                    <div style="display: flex; gap: 0.75rem; align-items: center;">
+                        <input type="color" name="avatar_color" value="{{ profile.avatar_color|default:'#06b6d4' }}" style="border: none; width: 44px; height: 38px; border-radius: var(--radius-sm); cursor: pointer; background: none;">
+                        <span style="font-size: 0.85rem; color: var(--text-muted);">Choose a signature cyber accent color for your operator profile icon.</span>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                    <a href="{% url 'home:home' %}" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa-solid fa-floppy-disk"></i> Save Profile Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Profile Overview Card -->
+    <div class="content-card">
+        <div class="card-header">
+            <div class="card-title-group">
+                <i class="fa-solid fa-id-card"></i>
+                <h3>Identity Badge</h3>
+            </div>
+            <span class="pill pill-success"><i class="fa-solid fa-shield-check"></i> Verified Operator</span>
+        </div>
+        <div class="card-body" style="display: flex; flex-direction: column; align-items: center; text-align: center;">
+            <div class="avatar-circle" style="width: 80px; height: 80px; font-size: 2rem; margin-bottom: 1.25rem; background-color: {{ profile.avatar_color|default:'#06b6d4' }}; box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);">
+                {{ request.user.username|slice:":1"|upper }}
+            </div>
+            <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.25rem;">
+                {{ profile.full_name|default:request.user.username }}
+            </h3>
+            <span class="pill pill-info" style="margin-bottom: 1rem;">{{ profile.role }}</span>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.5rem; line-height: 1.5;">
+                {{ profile.bio|default:'Security operator assigned to local network monitoring and rule evaluation.' }}
+            </p>
+
+            <div style="width: 100%; border-top: 1px solid var(--border-color); padding-top: 1.25rem; text-align: left;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.84rem; margin-bottom: 0.5rem;">
+                    <span style="color: var(--text-muted);">Organization:</span>
+                    <strong style="color: var(--text-primary);">{{ profile.organization }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.84rem; margin-bottom: 0.5rem;">
+                    <span style="color: var(--text-muted);">Account Joined:</span>
+                    <strong style="color: var(--text-primary);">{{ request.user.date_joined|date:"M d, Y" }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.84rem;">
+                    <span style="color: var(--text-muted);">Last Session:</span>
+                    <strong style="color: var(--brand-cyan);">{{ request.user.last_login|date:"M d, H:i" }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
