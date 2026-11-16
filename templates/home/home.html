@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}NetGuard - Local Network Monitoring Dashboard{% endblock %}
+{% block page_title %}Network Overview & Intrusion Detection{% endblock %}
+
+{% block content %}
+<!-- Page Header Block -->
+<div class="content-header">
+    <div class="content-title-block">
+        <h2>Network Security Dashboard</h2>
+        <p>Real-time telemetry, device inventory, and rule-based anomaly detection on subnet <code>{{ net_info.subnet }}</code></p>
+    </div>
+    <div class="content-actions">
+        <button class="btn btn-secondary" onclick="triggerSubnetScan(this)">
+            <i class="fa-solid fa-radar"></i> Scan Subnet Now
+        </button>
+        <a href="{% url 'home:scenarios' %}" class="btn btn-primary">
+            <i class="fa-solid fa-flask-vial"></i> Launch Scenario Lab
+        </a>
+    </div>
+</div>
+
+<!-- Top Metrics Stats Grid (Scope C.1 & C.3) -->
+<div class="stats-grid">
+    <div class="stat-card card-cyan">
+        <div class="stat-data">
+            <span class="stat-label">Active Monitored Devices</span>
+            <span class="stat-number">{{ active_devices_count }} <span style="font-size: 1rem; color: var(--text-muted);">/ {{ devices_count }}</span></span>
+            <span class="stat-desc"><i class="fa-solid fa-circle-check" style="color: var(--color-success);"></i> {{ devices_count }} total verified hosts</span>
+        </div>
+        <div class="stat-icon">
+            <i class="fa-solid fa-network-wired"></i>
+        </div>
+    </div>
+
+    <div class="stat-card card-green">
+        <div class="stat-data">
+            <span class="stat-label">Live Bandwidth Rate</span>
+            <span class="stat-number" id="liveThroughputStat">{{ latest_snap.bandwidth_kbps|default:'42.8' }} KB/s</span>
+            <span class="stat-desc"><i class="fa-solid fa-arrow-trend-up"></i> Adaptive packet sampling</span>
+        </div>
+        <div class="stat-icon">
+            <i class="fa-solid fa-gauge-high"></i>
+        </div>
+    </div>
+
+    <div class="stat-card card-red">
+        <div class="stat-data">
+            <span class="stat-label">Active Threats Detected</span>
+            <span class="stat-number">{{ unresolved_alerts_count }}</span>
+            <span class="stat-desc">
+                {% if critical_alerts_count > 0 %}
+                <strong style="color: var(--color-danger);"><i class="fa-solid fa-triangle-exclamation"></i> {{ critical_alerts_count }} Critical</strong>
+                {% else %}
+                <span style="color: var(--color-success);"><i class="fa-solid fa-shield-check"></i> No critical breaches</span>
+                {% endif %}
+            </span>
+        </div>
+        <div class="stat-icon">
+            <i class="fa-solid fa-shield-virus"></i>
+        </div>
+    </div>
+
+    <div class="stat-card card-indigo">
+        <div class="stat-data">
+            <span class="stat-label">Rule-Based Mechanisms</span>
+            <span class="stat-number">{{ rules_active }} Active</span>
+            <span class="stat-desc"><i class="fa-solid fa-code-commit"></i> Port scan, flood, burst & port checks</span>
+        </div>
+        <div class="stat-icon">
+            <i class="fa-solid fa-microchip"></i>
+        </div>
+    </div>
+</div>
+
+<!-- Network Activity Graph & Protocol Breakdown (Scope C.3 & C.4) -->
+<div class="dashboard-grid-2">
+    <!-- Activity Time-Series Graph -->
+    <div class="content-card">
+        <div class="card-header">
+            <div class="card-title-group">
+                <i class="fa-solid fa-chart-area"></i>
+                <h3>Network Activity Over Time</h3>
+            </div>
+            <span class="card-badge"><i class="fa-solid fa-bolt"></i> Live Stream</span>
+        </div>
+        <div class="card-body">
+            <div style="position: relative; height: 280px; width: 100%;">
+                <canvas id="trafficTrendChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Protocol Distribution Chart -->
+    <div class="content-card">
+        <div class="card-header">
+            <div class="card-title-group">
+                <i class="fa-solid fa-chart-pie"></i>
+                <h3>Protocol Distribution</h3>
+            </div>
+            <span class="card-badge">L4/L7 Inspection</span>
+        </div>
+        <div class="card-body" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div style="position: relative; height: 220px; width: 220px;">
+                <canvas id="protocolDonutChart"></canvas>
+            </div>
+            <div style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted); text-align: center;">
+                Based on continuous packet header inspection
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Subnet Host & Telemetry Specs Bar -->
+<div class="content-card" style="margin-bottom: 2rem;">
+    <div class="card-header">
+        <div class="card-title-group">
+            <i class="fa-solid fa-server"></i>
+            <h3>Designated Local Subnet & Gateway Environment</h3>
+        </div>
+        <span class="pill pill-info"><i class="fa-solid fa-satellite-dish"></i> Active Interface</span>
+    </div>
+    <div class="card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+            <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Local Subnet</span>
+                <p style="font-size: 1rem; font-weight: 700; color: var(--brand-cyan); font-family: 'JetBrains Mono', monospace;">{{ net_info.subnet }}</p>
+            </div>
+            <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Gateway IP</span>
+                <p style="font-size: 1rem; font-weight: 700; color: var(--text-primary); font-family: 'JetBrains Mono', monospace;">{{ net_info.gateway }}</p>
+            </div>
+            <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Host Machine</span>
+                <p style="font-size: 1rem; font-weight: 700; color: var(--text-primary); font-family: 'JetBrains Mono', monospace;">{{ net_info.hostname }}</p>
+            </div>
+            <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Sensor Mode</span>
+                <p style="font-size: 1rem; font-weight: 700; color: var(--color-success);"><i class="fa-solid fa-shield-halved"></i> Rule-Based IDS</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Connected Devices Overview (Scope C.2) -->
+<div class="content-card" style="margin-bottom: 2rem;">
+    <div class="card-header">
+        <div class="card-title-group">
+            <i class="fa-solid fa-laptop-code"></i>
+            <h3>Connected Subnet Devices</h3>
+        </div>
+        <a href="{% url 'home:devices' %}" class="btn btn-secondary btn-sm">
+            <span>View All Devices ({{ devices_count }})</span> <i class="fa-solid fa-arrow-right"></i>
+        </a>
+    </div>
+    <div class="table-responsive">
+        <table class="netguard-table">
+            <thead>
+                <tr>
+                    <th>IP Address</th>
+                    <th>Hostname / Label</th>
+                    <th>Device Role</th>
+                    <th>Vendor / MAC</th>
+                    <th>Status</th>
+                    <th>Open Ports</th>
+                    <th>Observed Packets</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dev in devices|slice:":5" %}
+                <tr>
+                    <td class="mono-font" style="font-weight: 700; color: var(--brand-cyan);">{{ dev.ip_address }}</td>
+                    <td style="font-weight: 600; color: var(--text-primary);">{{ dev.hostname|default:'Unknown Host' }}</td>
+                    <td>
+                        <span class="pill pill-info">{{ dev.device_type }}</span>
+                    </td>
+                    <td>
+                        <div>{{ dev.vendor|default:'Unknown' }}</div>
+                        <small class="mono-font" style="color: var(--text-muted);">{{ dev.mac_address }}</small>
+                    </td>
+                    <td>
+                        {% if dev.status == 'Online' %}
+                        <span class="pill pill-success"><i class="fa-solid fa-circle"></i> Online</span>
+                        {% elif dev.status == 'Suspicious' %}
+                        <span class="pill pill-danger"><i class="fa-solid fa-triangle-exclamation"></i> Suspicious</span>
+                        {% else %}
+                        <span class="pill pill-warning"><i class="fa-solid fa-moon"></i> {{ dev.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="mono-font" style="font-size: 0.8rem;">{{ dev.open_ports|default:'None' }}</td>
+                    <td class="mono-font">{{ dev.packet_count|default:'0' }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">No devices detected yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Recent Intrusion Detection Alerts (Scope D & SMART Objective 2 & 3) -->
+<div class="content-card">
+    <div class="card-header">
+        <div class="card-title-group">
+            <i class="fa-solid fa-triangle-exclamation" style="color: var(--color-danger);"></i>
+            <h3>Detected Suspicious Network Activities</h3>
+        </div>
+        <a href="{% url 'home:alerts' %}" class="btn btn-secondary btn-sm">
+            <span>All Alerts</span> <i class="fa-solid fa-arrow-right"></i>
+        </a>
+    </div>
+    <div class="table-responsive">
+        <table class="netguard-table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Severity</th>
+                    <th>Event Type</th>
+                    <th>Source IP</th>
+                    <th>Triggered Rule</th>
+                    <th>Description</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for alert in recent_alerts %}
+                <tr id="alert-row-{{ alert.id }}">
+                    <td class="mono-font" style="font-size: 0.82rem;">{{ alert.timestamp|date:"M d, H:i:s" }}</td>
+                    <td>
+                        {% if alert.severity == 'CRITICAL' %}
+                        <span class="pill pill-danger"><i class="fa-solid fa-radiation"></i> CRITICAL</span>
+                        {% elif alert.severity == 'HIGH' %}
+                        <span class="pill pill-danger"><i class="fa-solid fa-triangle-exclamation"></i> HIGH</span>
+                        {% elif alert.severity == 'MEDIUM' %}
+                        <span class="pill pill-warning"><i class="fa-solid fa-circle-exclamation"></i> MEDIUM</span>
+                        {% else %}
+                        <span class="pill pill-info">LOW</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-weight: 600; color: var(--text-primary);">{{ alert.get_event_type_display }}</td>
+                    <td class="mono-font" style="color: var(--brand-cyan); font-weight: 700;">{{ alert.source_ip }}</td>
+                    <td style="font-size: 0.82rem; color: var(--text-secondary);">{{ alert.rule_triggered }}</td>
+                    <td style="font-size: 0.85rem; max-width: 320px;">{{ alert.description }}</td>
+                    <td class="status-cell">
+                        {% if not alert.is_resolved %}
+                        <button class="btn btn-secondary btn-sm" onclick="resolveAlert({{ alert.id }}, this)">
+                            <i class="fa-solid fa-check"></i> Resolve
+                        </button>
+                        {% else %}
+                        <span class="pill pill-success"><i class="fa-solid fa-check"></i> Resolved</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 2rem; color: var(--color-success);">
+                        <i class="fa-solid fa-shield-check" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block;"></i>
+                        All systems normal. No suspicious intrusions detected on local network.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Initialize Network Activity Trend Chart
+    const trendCtx = document.getElementById('trafficTrendChart');
+    if (trendCtx) {
+        const labels = {{ chart_labels|safe }};
+        const packetsIn = {{ chart_packets_in|safe }};
+        const packetsOut = {{ chart_packets_out|safe }};
+
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Inbound Packets',
+                        data: packetsIn,
+                        borderColor: '#06b6d4',
+                        backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 2,
+                        pointRadius: 3,
+                    },
+                    {
+                        label: 'Outbound Packets',
+                        data: packetsOut,
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 2,
+                        pointRadius: 3,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 12 } }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 10 } }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 10 } },
+                        title: { display: true, text: 'Packets / Interval', color: '#64748b' }
+                    }
+                }
+            }
+        });
+    }
+
+    // 2. Initialize Protocol Donut Chart
+    const protoCtx = document.getElementById('protocolDonutChart');
+    if (protoCtx) {
+        const protocols = {{ protocols_json|safe }};
+        new Chart(protoCtx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(protocols),
+                datasets: [{
+                    data: Object.values(protocols),
+                    backgroundColor: ['#06b6d4', '#6366f1', '#10b981', '#f59e0b', '#8b5cf6'],
+                    borderWidth: 0,
+                    hoverOffset: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                cutout: '72%'
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

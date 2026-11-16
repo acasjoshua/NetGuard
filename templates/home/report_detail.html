@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}NetGuard - {{ report.title }}{% endblock %}
+{% block page_title %}Report Overview{% endblock %}
+
+{% block extra_css %}
+<style>
+@media print {
+    .app-sidebar, .app-header, .app-footer, .no-print, .content-actions {
+        display: none !important;
+    }
+    .app-main {
+        margin-left: 0 !important;
+        background: #fff !important;
+        color: #000 !important;
+    }
+    .content-card {
+        border: 1px solid #ccc !important;
+        box-shadow: none !important;
+        page-break-inside: avoid;
+    }
+    .netguard-table th {
+        background-color: #f1f5f9 !important;
+        color: #000 !important;
+    }
+    body {
+        background: #fff !important;
+        color: #000 !important;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-header no-print">
+    <div class="content-title-block">
+        <h2>{{ report.title }}</h2>
+        <p>Generated on {{ report.generated_at|date:"F d, Y H:i:s" }} by Security Analyst <strong>{{ report.generated_by.username }}</strong></p>
+    </div>
+    <div class="content-actions">
+        <a href="{% url 'home:reports' %}" class="btn btn-secondary">
+            <i class="fa-solid fa-arrow-left"></i> Back to Reports
+        </a>
+        <button class="btn btn-primary" onclick="window.print()">
+            <i class="fa-solid fa-print"></i> Print / Save as PDF
+        </button>
+    </div>
+</div>
+
+<!-- Report Summary Card -->
+<div class="content-card" style="margin-bottom: 2rem;">
+    <div class="card-header">
+        <div class="card-title-group">
+            <i class="fa-solid fa-file-contract"></i>
+            <h3>Executive Summary & Security Rating</h3>
+        </div>
+        <span class="pill pill-info">{{ report.time_period }}</span>
+    </div>
+    <div class="card-body">
+        <div class="stats-grid" style="margin-bottom: 1.5rem;">
+            <div class="stat-card card-green">
+                <div class="stat-data">
+                    <span class="stat-label">Network Health Score</span>
+                    <span class="stat-number">{{ report.network_health_score }}%</span>
+                    <span class="stat-desc">Security posture index</span>
+                </div>
+                <div class="stat-icon"><i class="fa-solid fa-shield-heart"></i></div>
+            </div>
+            <div class="stat-card card-cyan">
+                <div class="stat-data">
+                    <span class="stat-label">Monitored Endpoints</span>
+                    <span class="stat-number">{{ report.monitored_devices }}</span>
+                    <span class="stat-desc">Active hosts analyzed</span>
+                </div>
+                <div class="stat-icon"><i class="fa-solid fa-network-wired"></i></div>
+            </div>
+            <div class="stat-card card-red">
+                <div class="stat-data">
+                    <span class="stat-label">Critical Incidents</span>
+                    <span class="stat-number">{{ report.critical_count }}</span>
+                    <span class="stat-desc">Immediate action required</span>
+                </div>
+                <div class="stat-icon"><i class="fa-solid fa-radiation"></i></div>
+            </div>
+            <div class="stat-card card-amber">
+                <div class="stat-data">
+                    <span class="stat-label">High Priority Anomalies</span>
+                    <span class="stat-number">{{ report.high_count }}</span>
+                    <span class="stat-desc">Suspicious traffic alerts</span>
+                </div>
+                <div class="stat-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--brand-cyan); margin-bottom: 0.4rem;">
+                <i class="fa-solid fa-align-left"></i> Assessment Findings
+            </h4>
+            <div style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; white-space: pre-line; background: var(--bg-card-hover); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                {{ report.executive_summary }}
+            </div>
+        </div>
+
+        <div class="dashboard-grid-equal" style="margin-bottom: 0;">
+            <div>
+                <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--brand-cyan); margin-bottom: 0.4rem;">
+                    <i class="fa-solid fa-magnifying-glass"></i> Key Observations
+                </h4>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; white-space: pre-line; background: var(--bg-card-hover); padding: 1rem 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                    {{ report.findings }}
+                </div>
+            </div>
+            <div>
+                <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--color-success); margin-bottom: 0.4rem;">
+                    <i class="fa-solid fa-circle-check"></i> Remediation Recommendations
+                </h4>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; white-space: pre-line; background: var(--bg-card-hover); padding: 1rem 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                    {{ report.recommendations }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Logged Incident Telemetry -->
+<div class="content-card">
+    <div class="card-header">
+        <div class="card-title-group">
+            <i class="fa-solid fa-list-check"></i>
+            <h3>Security Incidents Logged in Assessment Period</h3>
+        </div>
+        <span class="card-badge">{{ alerts|length }} Incidents</span>
+    </div>
+    <div class="table-responsive">
+        <table class="netguard-table">
+            <thead>
+                <tr>
+                    <th>Severity</th>
+                    <th>Timestamp</th>
+                    <th>Source IP</th>
+                    <th>Destination IP</th>
+                    <th>Rule Triggered</th>
+                    <th>Incident Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in alerts %}
+                <tr>
+                    <td>
+                        {% if a.severity == 'CRITICAL' %}
+                        <span class="pill pill-danger">CRITICAL</span>
+                        {% elif a.severity == 'HIGH' %}
+                        <span class="pill pill-danger">HIGH</span>
+                        {% else %}
+                        <span class="pill pill-warning">MEDIUM</span>
+                        {% endif %}
+                    </td>
+                    <td class="mono-font" style="font-size: 0.8rem;">{{ a.timestamp|date:"M d, H:i:s" }}</td>
+                    <td class="mono-font" style="color: var(--brand-cyan); font-weight: 700;">{{ a.source_ip }}</td>
+                    <td class="mono-font">{{ a.destination_ip }}</td>
+                    <td style="font-size: 0.82rem;">{{ a.rule_triggered }}</td>
+                    <td style="font-size: 0.82rem; color: var(--text-muted);">{{ a.description }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

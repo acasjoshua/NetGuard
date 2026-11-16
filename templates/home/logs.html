@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}NetGuard - Event Logs & Activity History{% endblock %}
+{% block page_title %}Network Event Logs{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="content-title-block">
+        <h2>Network Activity & System Audit Logs</h2>
+        <p>Comprehensive relational database logs of packet anomalies, system authentications, and network discoveries.</p>
+    </div>
+    <div class="content-actions">
+        <a href="?export=csv{% if category_filter %}&category={{ category_filter }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-secondary">
+            <i class="fa-solid fa-file-csv"></i> Export to CSV
+        </a>
+    </div>
+</div>
+
+<!-- Search & Category Filters -->
+<div class="content-card" style="margin-bottom: 1.5rem;">
+    <div class="card-body" style="padding: 1.25rem;">
+        <form method="get" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+            <div style="flex: 1; min-width: 240px;">
+                <input type="text" name="q" class="form-control" placeholder="Search logs by action, IP address, or details..." value="{{ search_query }}">
+            </div>
+            <div style="min-width: 180px;">
+                <select name="category" class="form-control">
+                    <option value="">All Categories</option>
+                    <option value="SECURITY" {% if category_filter == 'SECURITY' %}selected{% endif %}>Security Alert</option>
+                    <option value="NETWORK" {% if category_filter == 'NETWORK' %}selected{% endif %}>Network Event</option>
+                    <option value="SYSTEM" {% if category_filter == 'SYSTEM' %}selected{% endif %}>System Activity</option>
+                    <option value="AUTH" {% if category_filter == 'AUTH' %}selected{% endif %}>Authentication</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-secondary">
+                <i class="fa-solid fa-search"></i> Search Logs
+            </button>
+            {% if search_query or category_filter %}
+            <a href="{% url 'home:logs' %}" class="btn btn-secondary">
+                <i class="fa-solid fa-rotate-left"></i> Reset
+            </a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Event Logs Table -->
+<div class="content-card">
+    <div class="card-header">
+        <div class="card-title-group">
+            <i class="fa-solid fa-list-check"></i>
+            <h3>Audit Log Stream</h3>
+        </div>
+        <span class="card-badge">Showing {{ logs|length }} of {{ total_logs }} records</span>
+    </div>
+    <div class="table-responsive">
+        <table class="netguard-table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Category</th>
+                    <th>Action</th>
+                    <th>Source IP</th>
+                    <th>Destination IP</th>
+                    <th>Protocol</th>
+                    <th>Audit Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td class="mono-font" style="font-size: 0.8rem; white-space: nowrap;">{{ log.timestamp|date:"Y-m-d H:i:s" }}</td>
+                    <td>
+                        {% if log.category == 'SECURITY' %}
+                        <span class="pill pill-danger"><i class="fa-solid fa-triangle-exclamation"></i> SECURITY</span>
+                        {% elif log.category == 'NETWORK' %}
+                        <span class="pill pill-info"><i class="fa-solid fa-network-wired"></i> NETWORK</span>
+                        {% elif log.category == 'AUTH' %}
+                        <span class="pill pill-warning"><i class="fa-solid fa-key"></i> AUTH</span>
+                        {% else %}
+                        <span class="pill pill-success"><i class="fa-solid fa-gear"></i> SYSTEM</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-weight: 600; color: var(--text-primary);">{{ log.action }}</td>
+                    <td class="mono-font" style="color: var(--brand-cyan);">{{ log.source_ip|default:'-' }}</td>
+                    <td class="mono-font" style="color: var(--text-muted);">{{ log.destination_ip|default:'-' }}</td>
+                    <td><span class="pill pill-secondary mono-font" style="font-size: 0.72rem;">{{ log.protocol }}</span></td>
+                    <td style="font-size: 0.84rem; color: var(--text-secondary); max-width: 400px;">{{ log.details }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                        No logs match your search filters.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

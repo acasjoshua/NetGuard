@@ -1,0 +1,277 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}NetGuard - Local Network Monitoring & Intrusion Detection System{% endblock %}</title>
+    <!-- Modern Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome 6 Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Core Theme CSS -->
+    <link rel="stylesheet" href="{% static 'css/netguard_theme.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="theme-dark">
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="app-sidebar" id="appSidebar">
+            <div class="sidebar-header">
+                <a href="{% url 'home:home' %}" class="brand-logo">
+                    <div class="logo-shield">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div class="brand-text">
+                        <span class="brand-title">Net<span>Guard</span></span>
+                        <span class="brand-tag">IDS v1.0 Core</span>
+                    </div>
+                </a>
+                <button class="sidebar-close-btn" id="sidebarCloseBtn" aria-label="Close Sidebar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Subnet Badge -->
+            <div class="subnet-banner">
+                <div class="subnet-info">
+                    <span class="subnet-label"><i class="fa-solid fa-network-wired"></i> Monitored Subnet</span>
+                    <span class="subnet-value">192.168.1.0/24</span>
+                </div>
+                <span class="status-dot-pulse online" title="Interface Active"></span>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="sidebar-nav">
+                <div class="nav-section-title">SECURITY OPERATIONS</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="{% url 'home:home' %}" class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
+                            <i class="fa-solid fa-chart-line"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'home:devices' %}" class="nav-link {% if request.resolver_match.url_name == 'devices' %}active{% endif %}">
+                            <i class="fa-solid fa-laptop-code"></i>
+                            <span>Connected Devices</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'home:alerts' %}" class="nav-link {% if request.resolver_match.url_name == 'alerts' %}active{% endif %}">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <span>Security Alerts</span>
+                            <span class="nav-badge alert-badge" id="sidebarAlertCount">3</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'home:scenarios' %}" class="nav-link {% if request.resolver_match.url_name == 'scenarios' %}active{% endif %}">
+                            <i class="fa-solid fa-flask-vial"></i>
+                            <span>Scenario Testing Lab</span>
+                            <span class="nav-badge test-badge">SMART</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="nav-section-title">LOGS & COMPLIANCE</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="{% url 'home:logs' %}" class="nav-link {% if request.resolver_match.url_name == 'logs' %}active{% endif %}">
+                            <i class="fa-solid fa-list-check"></i>
+                            <span>Event Logs</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'home:reports' %}" class="nav-link {% if request.resolver_match.url_name == 'reports' or request.resolver_match.url_name == 'report_detail' %}active{% endif %}">
+                            <i class="fa-solid fa-file-shield"></i>
+                            <span>Security Reports</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="nav-section-title">MANAGEMENT</div>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="{% url 'profile:profile' %}" class="nav-link {% if request.resolver_match.namespace == 'profile' %}active{% endif %}">
+                            <i class="fa-solid fa-id-badge"></i>
+                            <span>User Profile</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'user_settings:settings' %}" class="nav-link {% if request.resolver_match.namespace == 'user_settings' %}active{% endif %}">
+                            <i class="fa-solid fa-sliders"></i>
+                            <span>System Settings</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- Bottom User Profile Pill -->
+            <div class="sidebar-footer">
+                <div class="user-profile-widget">
+                    <div class="avatar-circle" style="background-color: {{ request.user.profile.avatar_color|default:'#06b6d4' }}">
+                        {{ request.user.username|slice:":1"|upper }}
+                    </div>
+                    <div class="user-details">
+                        <span class="user-name">{{ request.user.profile.full_name|default:request.user.username }}</span>
+                        <span class="user-role">{{ request.user.profile.role|default:'Security Analyst' }}</span>
+                    </div>
+                    <a href="{% url 'login:logout' %}" class="btn-logout-icon" title="Secure Logout">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Wrapper -->
+        <div class="app-main">
+            <!-- Top Navbar -->
+            <header class="app-header">
+                <div class="header-left">
+                    <button class="sidebar-toggle-btn" id="sidebarToggleBtn" aria-label="Toggle Menu">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <div class="header-breadcrumb">
+                        <span class="header-subtitle">NetGuard IDS</span>
+                        <h1 class="header-title">{% block page_title %}Dashboard{% endblock %}</h1>
+                    </div>
+                </div>
+
+                <div class="header-center">
+                    <div class="status-indicator-pill" id="headerStatusPill">
+                        <span class="status-pulse-dot"></span>
+                        <span class="status-text">SYSTEM DEFENSE ACTIVE</span>
+                    </div>
+                    <div class="live-clock" id="liveClockDisplay">
+                        <i class="fa-regular fa-clock"></i> <span id="clockTime">--:--:--</span>
+                    </div>
+                </div>
+
+                <div class="header-right">
+                    <!-- Project Info Modal Trigger -->
+                    <button class="header-action-btn" id="openAboutModalBtn" title="Project Documentation & Objectives">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span>About NetGuard</span>
+                    </button>
+
+                    <!-- Theme Toggle -->
+                    <button class="header-action-btn theme-toggle-btn" id="themeToggleBtn" title="Toggle Light/Dark Theme">
+                        <i class="fa-solid fa-moon" id="themeIcon"></i>
+                    </button>
+
+                    <!-- User Menu Dropdown -->
+                    <div class="user-dropdown-container">
+                        <button class="user-menu-btn" id="userMenuBtn">
+                            <div class="avatar-sm" style="background-color: {{ request.user.profile.avatar_color|default:'#06b6d4' }}">
+                                {{ request.user.username|slice:":1"|upper }}
+                            </div>
+                            <span class="user-display-name">{{ request.user.username }}</span>
+                            <i class="fa-solid fa-chevron-down caret-icon"></i>
+                        </button>
+                        <div class="dropdown-menu" id="userDropdownMenu">
+                            <div class="dropdown-header">
+                                <strong>{{ request.user.profile.full_name|default:request.user.username }}</strong>
+                                <small>{{ request.user.email|default:'Local Analyst' }}</small>
+                            </div>
+                            <div class="dropdown-divider"></div>
+                            <a href="{% url 'profile:profile' %}" class="dropdown-item">
+                                <i class="fa-solid fa-user-circle"></i> Profile Overview
+                            </a>
+                            <a href="{% url 'user_settings:settings' %}" class="dropdown-item">
+                                <i class="fa-solid fa-gear"></i> Detection Preferences
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a href="{% url 'login:logout' %}" class="dropdown-item text-danger">
+                                <i class="fa-solid fa-arrow-right-from-bracket"></i> Secure Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Content Body -->
+            <main class="page-content">
+                {% if messages %}
+                <div class="flash-messages">
+                    {% for message in messages %}
+                    <div class="flash-banner {{ message.tags }}">
+                        <i class="fa-solid fa-info-circle"></i>
+                        <span>{{ message }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% block content %}{% endblock %}
+            </main>
+
+            <!-- Footer -->
+            <footer class="app-footer">
+                <div class="footer-left">
+                    <strong>NetGuard</strong>: Local Network Monitoring and Intrusion Detection System &bull; <em>“See Your Network. Detect the Threats.”</em>
+                </div>
+                <div class="footer-right">
+                    <span>CSIT327 Final Project &bull; Student: Acas &bull; All Rules Active</span>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Project Information Modal (Covers SMART Objectives, Scope, Problem, Limitations) -->
+    <div class="modal-overlay" id="aboutModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <div class="modal-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                    <div>
+                        <h2>NetGuard: Local Network Monitoring and Intrusion Detection System</h2>
+                        <p class="modal-subtitle">“See Your Network. Detect the Threats.”</p>
+                    </div>
+                </div>
+                <button class="modal-close-btn" id="closeAboutModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-tab-content">
+                    <section class="info-section">
+                        <h3><i class="fa-solid fa-bullseye"></i> Problem Statement</h3>
+                        <p>Many users connected to local networks have limited visibility into what devices are communicating and whether unusual network activity is occurring. Existing professional network-monitoring tools can be complicated for beginners and may require specialized knowledge. This makes it difficult for students and small organizations to identify potentially suspicious activity on their networks. NetGuard provides a simpler, understandable, and actionable way to monitor local network security.</p>
+                    </section>
+
+                    <section class="info-section">
+                        <h3><i class="fa-solid fa-list-check"></i> SMART Objectives Achieved</h3>
+                        <ul class="styled-list">
+                            <li><strong>1. Functional Monitoring System:</strong> Developed a responsive web-based network monitoring platform collecting and displaying local subnet activity in real-time.</li>
+                            <li><strong>2. Three+ Rule-Based Detection Mechanisms:</strong> Implemented Rule 1 (Rapid Port Scan Detection), Rule 2 (Excessive Connection Rate / Flood), Rule 3 (Abnormal Traffic Bandwidth Spike), and Rule 4 (Suspicious Legacy Port Probes).</li>
+                            <li><strong>3. Comprehensive Dashboard:</strong> Provides connected devices inventory, incoming/outgoing traffic statistics, protocol breakdown, and real-time activity graphs.</li>
+                            <li><strong>4. User Authentication & Profile:</strong> Secure user registration, credential authentication, role-based profile management, and session logout.</li>
+                            <li><strong>5. Relational Database Logging:</strong> Network events, security alerts, and system activities are persisted and queryable in a relational database.</li>
+                            <li><strong>6. Controlled Scenario Evaluation:</strong> Dedicated Scenario Testing Lab allows testing controlled traffic scenarios and documents detection latency, verdicts, and limitations.</li>
+                        </ul>
+                    </section>
+
+                    <section class="info-section">
+                        <h3><i class="fa-solid fa-triangle-exclamation"></i> Documented System Limitations</h3>
+                        <ul class="styled-list limitations-list">
+                            <li>NetGuard focuses on designated local network subnets and does not monitor external wide-area Internet traffic.</li>
+                            <li>Rule-based detection identifies predefined behavioral patterns rather than full enterprise-level machine learning IDS/IPS.</li>
+                            <li>The system observes and alerts on anomalies but does not actively execute offensive countermeasures or packet tampering.</li>
+                            <li>Advanced encrypted payload payload inspection is outside scope (analysis relies on IP headers, port signatures, and rate metrics).</li>
+                        </ul>
+                    </section>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="confirmAboutModalBtn">Understood & Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core Theme JavaScript -->
+    <script src="{% static 'js/main.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}NetGuard - Controlled Scenario Evaluation Lab{% endblock %}
+{% block page_title %}Controlled Scenario Testing Lab{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="content-title-block">
+        <h2>Controlled Scenario Testing & Evaluation Suite</h2>
+        <p>SMART Objective 6: Evaluate the rule-based detection system using controlled network-traffic scenarios and document detection results and limitations.</p>
+    </div>
+</div>
+
+<!-- Evaluation Results Card (If Scenario Run) -->
+{% if scenario_result %}
+<div class="content-card" style="margin-bottom: 2rem; border-color: {% if scenario_result.alerts_count > 0 %}var(--color-danger){% else %}var(--color-success){% endif %}; box-shadow: {% if scenario_result.alerts_count > 0 %}var(--shadow-glow-danger){% else %}none{% endif %};">
+    <div class="card-header" style="background-color: rgba(0, 0, 0, 0.25);">
+        <div class="card-title-group">
+            <i class="fa-solid fa-flask-vial" style="color: {% if scenario_result.alerts_count > 0 %}var(--color-danger){% else %}var(--color-success){% endif %};"></i>
+            <h3>Evaluation Telemetry: {{ scenario_result.name }}</h3>
+        </div>
+        <span class="pill {% if scenario_result.alerts_count > 0 %}pill-danger{% else %}pill-success{% endif %}">
+            {{ scenario_result.verdict }}
+        </span>
+    </div>
+    <div class="card-body">
+        <div class="stats-grid" style="margin-bottom: 1.5rem;">
+            <div class="stat-card card-cyan">
+                <div class="stat-data">
+                    <span class="stat-label">Execution Latency</span>
+                    <span class="stat-number">{{ scenario_result.elapsed_ms }} ms</span>
+                    <span class="stat-desc">Rule evaluation processing</span>
+                </div>
+                <div class="stat-icon"><i class="fa-solid fa-stopwatch"></i></div>
+            </div>
+            <div class="stat-card card-green">
+                <div class="stat-data">
+                    <span class="stat-label">Packets Ingested</span>
+                    <span class="stat-number">{{ scenario_result.packets_analyzed }}</span>
+                    <span class="stat-desc">Synthetic controlled frames</span>
+                </div>
+                <div class="stat-icon"><i class="fa-solid fa-layer-group"></i></div>
+            </div>
+            <div class="stat-card card-amber">
+                <div class="stat-data">
+                    <span class="stat-label">Expected vs Actual</span>
+                    <span class="stat-number" style="font-size: 1.2rem;">{{ scenario_result.verdict }}</span>
+                    <span class="stat-desc">Expected: {{ scenario_result.expected_verdict }}</span>
+                </div>
+                <div class="stat-icon"><i class="fa-solid fa-bullseye"></i></div>
+            </div>
+            <div class="stat-card card-red">
+                <div class="stat-data">
+                    <span class="stat-label">Security Alerts Logged</span>
+                    <span class="stat-number">{{ scenario_result.alerts_count }}</span>
+                    <span class="stat-desc">Persisted to Relational DB</span>
+                </div>
+                <div class="stat-icon"><i class="fa-solid fa-bell"></i></div>
+            </div>
+        </div>
+
+        <div style="background: var(--bg-card-hover); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.25rem; border: 1px solid var(--border-color);">
+            <h4 style="font-size: 0.92rem; color: var(--brand-cyan); margin-bottom: 0.5rem;">
+                <i class="fa-solid fa-clipboard-check"></i> Documented Detection Analysis
+            </h4>
+            <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+                {{ scenario_result.description }}
+            </p>
+            <div style="font-size: 0.84rem; color: var(--text-primary);">
+                <strong>Targeted Rule:</strong> <span class="mono-font" style="color: var(--brand-cyan);">{{ scenario_result.expected_rule }}</span>
+            </div>
+        </div>
+
+        <div style="background: rgba(245, 158, 11, 0.08); border-left: 4px solid var(--color-warning); border-radius: var(--radius-sm); padding: 1rem 1.25rem;">
+            <h4 style="font-size: 0.9rem; color: var(--color-warning); margin-bottom: 0.35rem;">
+                <i class="fa-solid fa-triangle-exclamation"></i> Documented Limitations (Per SMART Objective 6)
+            </h4>
+            <p style="font-size: 0.84rem; color: var(--text-secondary);">
+                {{ scenario_result.limitations_note }}
+            </p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Scenario Launch Cards Grid -->
+<div class="dashboard-grid-equal">
+    <!-- Scenario 0: Baseline Normal -->
+    <div class="content-card">
+        <div class="card-header">
+            <div class="card-title-group">
+                <i class="fa-solid fa-circle-check" style="color: var(--color-success);"></i>
+                <h3>Scenario 0: Normal Baseline Web Traffic</h3>
+            </div>
+            <span class="pill pill-success">Benign</span>
+        </div>
+        <div class="card-body">
+            <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+                Simulates standard student workstation HTTP/HTTPS browsing, DNS queries, and background operating system telemetry. All rules evaluate cleanly without triggering alerts.
+            </p>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="scenario_key" value="baseline">
+                <button type="submit" class="btn btn-secondary" style="width: 100%;">
+                    <i class="fa-solid fa-play"></i> Run Baseline Traffic Test
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scenario 1: Port Scan -->
+    <div class="content-card">
+        <div class="card-header">
+            <div class="card-title-group">
+                <i class="fa-solid fa-crosshairs" style="color: var(--color-danger);"></i>
+                <h3>Scenario 1: Reconnaissance & Port Scanning</h3>
+            </div>
+            <span class="pill pill-danger">RULE-01</span>
+        </div>
+        <div class="card-body">
+            <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+                Host <code>192.168.1.189</code> executes rapid TCP SYN discovery across 14 well-known ports within 3.5 seconds. Evaluates <strong>Rule 1 (Rapid Port Scan Detection)</strong>.
+            </p>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="scenario_key" value="port_scan">
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="fa-solid fa-bolt"></i> Simulate Port Scan Attack
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scenario 2: Connection Burst -->
+    <div class="content-card">
+        <div class="card-header">
+            <div class="card-title-group">
+                <i class="fa-solid fa-arrows-split-up-and-left" style="color: var(--color-danger);"></i>
+                <h3>Scenario 2: Excessive Connection Rate / SYN Flood</h3>
+            </div>
+            <span class="pill pill-danger">RULE-02</span>
+        </div>
+        <div class="card-body">
+            <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+                Host <code>192.168.1.204</code> initiates 48 consecutive TCP socket connections in 4.0 seconds toward local NAS server. Evaluates <strong>Rule 2 (Excessive Connection Rate)</strong>.
+            </p>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="scenario_key" value="connection_burst">
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="fa-solid fa-bolt"></i> Simulate Connection Flood
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scenario 3: Abnormal Bandwidth Spike -->
+    <div class="content-card">
+        <div class="card-header">
+            <div class="card-title-group">
+                <i class="fa-solid fa-gauge-simple-high" style="color: var(--color-warning);"></i>
+                <h3>Scenario 3: Abnormal Bandwidth Spike</h3>
+            </div>
+            <span class="pill pill-warning">RULE-03</span>
+        </div>
+        <div class="card-body">
+            <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+                Host <code>192.168.1.140</code> produces 650 packets in 4.0s (162.5 pkt/s), exceeding typical network thresholds. Evaluates <strong>Rule 3 (Abnormal Traffic Spike)</strong>.
+            </p>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="scenario_key" value="abnormal_traffic">
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="fa-solid fa-bolt"></i> Simulate Bandwidth Spike
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scenario 4: Suspicious Port Probing -->
+    <div class="content-card">
+        <div class="card-header">
+            <div class="card-title-group">
+                <i class="fa-solid fa-network-wired" style="color: var(--color-warning);"></i>
+                <h3>Scenario 4: Probing Legacy Ports (Telnet & SMB)</h3>
+            </div>
+            <span class="pill pill-warning">RULE-04</span>
+        </div>
+        <div class="card-body">
+            <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+                Host probes unencrypted cleartext management services (Telnet Port 23 and SMB Port 445). Evaluates <strong>Rule 4 (Suspicious Service Port Probing)</strong>.
+            </p>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="scenario_key" value="suspicious_port">
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="fa-solid fa-bolt"></i> Simulate Legacy Port Probe
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

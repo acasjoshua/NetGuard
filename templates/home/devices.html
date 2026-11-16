@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}NetGuard - Connected Devices Inventory{% endblock %}
+{% block page_title %}Connected Subnet Devices{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="content-title-block">
+        <h2>Network Endpoint Inventory</h2>
+        <p>Active IP addresses, MAC hardware addresses, hostnames, and exposed ports detected on <code>{{ net_info.subnet }}</code></p>
+    </div>
+    <div class="content-actions">
+        <button class="btn btn-primary" onclick="triggerSubnetScan(this)">
+            <i class="fa-solid fa-radar"></i> Scan Subnet Now
+        </button>
+    </div>
+</div>
+
+<!-- Endpoint Stats Grid -->
+<div class="stats-grid">
+    <div class="stat-card card-cyan">
+        <div class="stat-data">
+            <span class="stat-label">Total Cataloged</span>
+            <span class="stat-number">{{ total_count }}</span>
+            <span class="stat-desc">Endpoints indexed</span>
+        </div>
+        <div class="stat-icon"><i class="fa-solid fa-list-ol"></i></div>
+    </div>
+    <div class="stat-card card-green">
+        <div class="stat-data">
+            <span class="stat-label">Online Active</span>
+            <span class="stat-number">{{ online_count }}</span>
+            <span class="stat-desc">Responding to ARP / Ping</span>
+        </div>
+        <div class="stat-icon"><i class="fa-solid fa-circle-check"></i></div>
+    </div>
+    <div class="stat-card card-red">
+        <div class="stat-data">
+            <span class="stat-label">Suspicious / Flagged</span>
+            <span class="stat-number">{{ suspicious_count }}</span>
+            <span class="stat-desc">Triggered IDS alerts</span>
+        </div>
+        <div class="stat-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    </div>
+    <div class="stat-card card-amber">
+        <div class="stat-data">
+            <span class="stat-label">Idle / Standby</span>
+            <span class="stat-number">{{ idle_count }}</span>
+            <span class="stat-desc">Low traffic volume</span>
+        </div>
+        <div class="stat-icon"><i class="fa-solid fa-clock"></i></div>
+    </div>
+</div>
+
+<!-- Search & Filter Controls -->
+<div class="content-card" style="margin-bottom: 1.5rem;">
+    <div class="card-body" style="padding: 1.25rem;">
+        <form method="get" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+            <div style="flex: 1; min-width: 240px;">
+                <input type="text" name="q" class="form-control" placeholder="Search by IP address, hostname, or manufacturer..." value="{{ search_query }}">
+            </div>
+            <div style="min-width: 160px;">
+                <select name="status" class="form-control">
+                    <option value="">All Statuses</option>
+                    <option value="Online" {% if status_filter == 'Online' %}selected{% endif %}>Online</option>
+                    <option value="Suspicious" {% if status_filter == 'Suspicious' %}selected{% endif %}>Suspicious</option>
+                    <option value="Idle" {% if status_filter == 'Idle' %}selected{% endif %}>Idle</option>
+                    <option value="Offline" {% if status_filter == 'Offline' %}selected{% endif %}>Offline</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-secondary">
+                <i class="fa-solid fa-filter"></i> Filter
+            </button>
+            {% if search_query or status_filter %}
+            <a href="{% url 'home:devices' %}" class="btn btn-secondary" title="Clear Filters">
+                <i class="fa-solid fa-rotate-left"></i> Reset
+            </a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Devices Table -->
+<div class="content-card">
+    <div class="table-responsive">
+        <table class="netguard-table">
+            <thead>
+                <tr>
+                    <th>IP Address</th>
+                    <th>MAC Address</th>
+                    <th>Hostname</th>
+                    <th>Device Role</th>
+                    <th>Hardware Vendor</th>
+                    <th>Operating System</th>
+                    <th>Status</th>
+                    <th>Open Ports</th>
+                    <th>Last Active</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dev in devices %}
+                <tr>
+                    <td class="mono-font" style="font-weight: 700; color: var(--brand-cyan);">
+                        <i class="fa-solid fa-desktop" style="font-size: 0.8rem; margin-right: 0.4rem; color: var(--text-muted);"></i>
+                        {{ dev.ip_address }}
+                    </td>
+                    <td class="mono-font" style="font-size: 0.82rem; color: var(--text-muted);">{{ dev.mac_address|default:'00:00:00:00:00:00' }}</td>
+                    <td style="font-weight: 600; color: var(--text-primary);">{{ dev.hostname|default:'Unknown Node' }}</td>
+                    <td><span class="pill pill-info">{{ dev.device_type }}</span></td>
+                    <td>{{ dev.vendor|default:'Generic NIC' }}</td>
+                    <td style="font-size: 0.82rem; color: var(--text-secondary);">{{ dev.os_info }}</td>
+                    <td>
+                        {% if dev.status == 'Online' %}
+                        <span class="pill pill-success"><i class="fa-solid fa-circle"></i> Online</span>
+                        {% elif dev.status == 'Suspicious' %}
+                        <span class="pill pill-danger"><i class="fa-solid fa-triangle-exclamation"></i> Suspicious</span>
+                        {% else %}
+                        <span class="pill pill-warning">{{ dev.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="mono-font" style="font-size: 0.8rem; color: var(--brand-indigo);">{{ dev.open_ports|default:'None' }}</td>
+                    <td style="font-size: 0.8rem; color: var(--text-muted);">{{ dev.last_seen|timesince }} ago</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                        No devices matching current search or filters.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
