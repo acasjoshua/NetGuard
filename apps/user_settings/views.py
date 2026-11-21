@@ -1,7 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from .models import UserSettings
-from apps.home.models import ActivityLog, DetectionRule
+from apps.detection.models import DetectionRule
 
 @login_required
 def settings_view(request):
@@ -35,25 +35,18 @@ def settings_view(request):
 
         # Adjust rule thresholds based on sensitivity
         if settings_obj.sensitivity == 'HIGH':
-            DetectionRule.objects.filter(code='RULE-01').update(threshold_value=5.0)
-            DetectionRule.objects.filter(code='RULE-02').update(threshold_value=20.0)
-            DetectionRule.objects.filter(code='RULE-03').update(threshold_value=70.0)
+            DetectionRule.objects.filter(code='PORT_SCAN').update(threshold=10)
+            DetectionRule.objects.filter(code='CONN_ATTEMPT').update(threshold=10)
+            DetectionRule.objects.filter(code='DOS_BANDWIDTH').update(threshold=25000000)
         elif settings_obj.sensitivity == 'LOW':
-            DetectionRule.objects.filter(code='RULE-01').update(threshold_value=12.0)
-            DetectionRule.objects.filter(code='RULE-02').update(threshold_value=50.0)
-            DetectionRule.objects.filter(code='RULE-03').update(threshold_value=150.0)
+            DetectionRule.objects.filter(code='PORT_SCAN').update(threshold=25)
+            DetectionRule.objects.filter(code='CONN_ATTEMPT').update(threshold=35)
+            DetectionRule.objects.filter(code='DOS_BANDWIDTH').update(threshold=80000000)
         else: # MEDIUM
-            DetectionRule.objects.filter(code='RULE-01').update(threshold_value=8.0)
-            DetectionRule.objects.filter(code='RULE-02').update(threshold_value=35.0)
-            DetectionRule.objects.filter(code='RULE-03').update(threshold_value=100.0)
+            DetectionRule.objects.filter(code='PORT_SCAN').update(threshold=15)
+            DetectionRule.objects.filter(code='CONN_ATTEMPT').update(threshold=20)
+            DetectionRule.objects.filter(code='DOS_BANDWIDTH').update(threshold=50000000)
 
-        ActivityLog.objects.create(
-            action="System Settings Updated",
-            category="SYSTEM",
-            source_ip=request.META.get('REMOTE_ADDR', '127.0.0.1'),
-            details=f"User {request.user.username} modified detection sensitivity to {settings_obj.sensitivity}.",
-            user=request.user
-        )
         success_msg = "Settings and detection thresholds updated successfully!"
 
     rules = DetectionRule.objects.all()

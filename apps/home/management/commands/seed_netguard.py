@@ -2,12 +2,15 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
 from apps.user_profile.models import Profile
 from apps.user_settings.models import UserSettings
-from apps.home.ids_engine import seed_sample_data_if_empty
+from apps.networks.models import UserNetwork
+from apps.home.ids_engine import seed_sample_data_if_empty, get_default_network
 
 class Command(BaseCommand):
     help = 'Seed initial NetGuard users, detection rules, devices, and baseline telemetry'
 
     def handle(self, *args, **options):
+        network = get_default_network()
+
         # 1. Create or get admin user
         admin_user, created = User.objects.get_or_create(
             username='admin',
@@ -47,6 +50,12 @@ class Command(BaseCommand):
             }
         )
 
+        UserNetwork.objects.get_or_create(
+            user=admin_user,
+            network=network,
+            defaults={'role': UserNetwork.Role.OWNER}
+        )
+
         # 2. Create student user 'acas'
         acas_user, created = User.objects.get_or_create(
             username='acas',
@@ -83,6 +92,12 @@ class Command(BaseCommand):
                 'sensitivity': 'MEDIUM',
                 'auto_refresh_rate': 5,
             }
+        )
+
+        UserNetwork.objects.get_or_create(
+            user=acas_user,
+            network=network,
+            defaults={'role': UserNetwork.Role.SAVED}
         )
 
         # 3. Seed data

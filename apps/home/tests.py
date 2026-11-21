@@ -1,8 +1,10 @@
 from django.test import TestCase, Client
 from django.contrib.auth.models import User
 from django.urls import reverse
-from .models import Device, SecurityAlert, DetectionRule, SecurityReport, TrafficSnapshot
-from .ids_engine import execute_rule_based_analysis, run_controlled_scenario, seed_sample_data_if_empty
+from apps.monitoring.models import Device, TrafficStat
+from apps.detection.models import SecurityAlert, DetectionRule, DetectedEvent
+from apps.networks.models import Network
+from .ids_engine import execute_rule_based_analysis, run_controlled_scenario, seed_sample_data_if_empty, get_default_network
 
 class NetGuardIntrusionDetectionTests(TestCase):
     def setUp(self):
@@ -48,7 +50,7 @@ class NetGuardIntrusionDetectionTests(TestCase):
         ]
         result = execute_rule_based_analysis(bursts)
         self.assertTrue(len(result['alerts_triggered']) > 0)
-        burst_alerts = [a for a in result['alerts_triggered'] if a.event_type == 'CONNECTION_BURST']
+        burst_alerts = [a for a in result['alerts_triggered'] if a.event_type == 'CONN_ATTEMPT']
         self.assertTrue(len(burst_alerts) > 0)
 
     def test_rule_03_abnormal_traffic_detection(self):
@@ -58,7 +60,7 @@ class NetGuardIntrusionDetectionTests(TestCase):
         ]
         result = execute_rule_based_analysis(traffic)
         self.assertTrue(len(result['alerts_triggered']) > 0)
-        abnormal_alerts = [a for a in result['alerts_triggered'] if a.event_type == 'ABNORMAL_TRAFFIC']
+        abnormal_alerts = [a for a in result['alerts_triggered'] if a.event_type == 'DOS_BANDWIDTH']
         self.assertTrue(len(abnormal_alerts) > 0)
 
     def test_controlled_scenario_evaluation(self):
@@ -66,16 +68,14 @@ class NetGuardIntrusionDetectionTests(TestCase):
         scenario_result = run_controlled_scenario('port_scan')
         self.assertEqual(scenario_result['verdict'], 'THREAT DETECTED')
         self.assertGreaterEqual(scenario_result['elapsed_ms'], 0.0)
-        self.assertIn('RULE-01', scenario_result['expected_rule'])
+        self.assertIn('PORT_SCAN', scenario_result['expected_rule'])
 
     def test_report_generation(self):
-        """Scope E.3: Verify generating security report stores into relational database."""
+        """Scope E.3: Verify generating security report computes dynamically."""
         self.client.login(username='testanalyst', password='password123')
         response = self.client.post(reverse('home:reports'), {
             'title': 'Test Evaluation Report',
             'period': 'Last 24 Hours'
         })
         self.assertEqual(response.status_code, 302)
-        report = SecurityReport.objects.filter(title='Test Evaluation Report').first()
-        self.assertIsNotNone(report)
-        self.assertEqual(report.generated_by, self.user)
+        self.assertIn(reverse('home:report_detail', kwargs={'report_id': 1}), response.url)

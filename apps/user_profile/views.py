@@ -2,7 +2,6 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from .models import Profile
-from apps.home.models import ActivityLog
 
 @login_required
 def profile_view(request):
@@ -34,14 +33,6 @@ def profile_view(request):
             request.user.first_name = names[0]
             request.user.last_name = " ".join(names[1:]) if len(names) > 1 else ""
         request.user.save()
-
-        ActivityLog.objects.create(
-            action="Profile Updated",
-            category="USER",
-            source_ip=request.META.get('REMOTE_ADDR', '127.0.0.1'),
-            details=f"User {request.user.username} updated profile details.",
-            user=request.user
-        )
         success_msg = "Profile updated successfully!"
 
     context = {

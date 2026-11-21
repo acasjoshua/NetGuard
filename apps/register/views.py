@@ -3,7 +3,6 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from apps.user_profile.models import Profile
 from apps.user_settings.models import UserSettings
-from apps.home.models import ActivityLog
 
 def register_view(request):
     if request.user.is_authenticated:
@@ -74,14 +73,6 @@ def register_view(request):
             sound_alerts=True,
             sensitivity="MEDIUM",
             auto_refresh_rate=5
-        )
-
-        ActivityLog.objects.create(
-            action="New User Registered",
-            category="AUTH",
-            source_ip=request.META.get('REMOTE_ADDR', '127.0.0.1'),
-            details=f"User '{username}' registered with role '{role}'.",
-            user=user
         )
 
         # Redirect to login URL with a success message query parameter so form posts to /login/

@@ -16,6 +16,18 @@ from pathlib import Path
 import os 
 from dotenv import load_dotenv 
 import dj_database_url
+import django.template.context
+from django.core.exceptions import ImproperlyConfigured
+from django.db import connections
+from django.db.utils import OperationalError
+
+# Python 3.14 compatibility fix for Django template Context copy
+def _base_context_copy(self):
+    obj = self.__class__.__new__(self.__class__)
+    obj.__dict__.update(self.__dict__)
+    obj.dicts = self.dicts[:]
+    return obj
+django.template.context.BaseContext.__copy__ = _base_context_copy
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -44,6 +56,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     # Add your feature apps:
+    'apps.networks',
+    'apps.monitoring',
+    'apps.detection',
     'apps.login',
     'apps.register',
     'apps.home',
@@ -97,37 +112,30 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
-db_url = os.environ.get("DATABASE_URL", "")
-db_configured = False
+if not DATABASE_URL:
+    raise ImproperlyConfigured(
+        "DATABASE_URL environment variable is not set. Refusing to fall back to SQLite."
+    )
 
-if db_url and not os.environ.get("FORCE_SQLITE"):
-    try:
-        import socket
-        parsed_db = dj_database_url.parse(db_url)
-        db_host = parsed_db.get("HOST")
-        db_port = int(parsed_db.get("PORT") or 5432)
-        if db_host:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(1.2)
-            sock.connect((db_host, db_port))
-            sock.close()
-            DATABASES = {
-                "default": dj_database_url.parse(db_url, conn_max_age=600, ssl_require=True)
-            }
-            db_configured = True
-    except Exception:
-        db_configured = False
+DATABASES = {
+    "default": dj_database_url.parse(
+        DATABASE_URL,
+        conn_max_age=600,
+        ssl_require=True,
+    )
+}
 
-if not db_configured:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
+try:
+    connections["default"].ensure_connection()
+except OperationalError as exc:
+    raise OperationalError(
+        f"Configured DATABASE_URL is unreachable ({DATABASES['default'].get('HOST')})."
+    ) from exc
+
+# Optional: Set a short connection timeout (in seconds) so unreachable hosts fail quickly
+DATABASES["default"].setdefault("OPTIONS", {})["connect_timeout"] = 5
 
 
 # Password validation

@@ -149,14 +149,14 @@
                 <div style="background: var(--bg-card-hover); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
                         <strong style="font-size: 0.9rem; color: var(--brand-cyan);">{{ r.code }}</strong>
-                        <span class="pill {% if r.severity == 'CRITICAL' %}pill-danger{% elif r.severity == 'HIGH' %}pill-danger{% else %}pill-warning{% endif %}" style="font-size: 0.7rem;">
-                            {{ r.severity }}
+                        <span class="pill {% if r.default_severity == 'CRITICAL' %}pill-danger{% elif r.default_severity == 'HIGH' %}pill-danger{% else %}pill-warning{% endif %}" style="font-size: 0.7rem;">
+                            {{ r.default_severity }}
                         </span>
                     </div>
                     <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">{{ r.name }}</div>
                     <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted);">
-                        <span>Trigger Condition: <strong>&ge; {{ r.threshold_value }}</strong></span>
-                        <span>Window: <strong>{{ r.time_window_seconds }}s</strong></span>
+                        <span>Trigger Condition: <strong>&ge; {{ r.threshold }}</strong></span>
+                        <span>Window: <strong>{{ r.time_window_sec }}s</strong></span>
                     </div>
                 </div>
                 {% endfor %}

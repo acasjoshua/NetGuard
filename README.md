@@ -1,25 +1,25 @@
 # NetGuard
 
-NetGuard is a Django-based local network monitoring and rule-based intrusion detection application. It presents device and traffic information in an operations dashboard and records security alerts, event logs, and reports.
+NetGuard is a Django-based local network monitoring and rule-based intrusion detection application. It presents device and traffic information in an operations dashboard and records security alerts and event logs.
 
 ## Features
 
-- Network overview with device inventory, traffic statistics, and protocol breakdowns
-- Detection rules for rapid port scans, connection bursts, abnormal traffic rates, and legacy service probes
-- Alerts, event logs, reports, and a controlled scenario-testing lab
-- Operator registration, authentication, profile management, and configurable settings
-- Seed command for sample devices, telemetry, rules, and demo accounts
+- Designated local network overview with endpoint inventory and live traffic statistics
+- Rule-based intrusion detection engine mapped to physical ERD relational schema
+- Security alerts, detected events, dynamic report generation, and controlled testing scenarios
+- Operator registration, authentication, profile management, and configurable user settings
+- Seed command for sample network endpoints, telemetry, rules, and operator accounts
 
 ## Technology
 
 - Python 3.9+
 - Django 4.2
-- SQLite by default
+- PostgreSQL (Supabase)
 - Chart.js for dashboard visualizations
 
 ## Setup
 
-Run these commands from the cloned repository root.
+Run these commands from the cloned repository root. Ensure your `.env` file contains your Supabase PostgreSQL connection string in `DATABASE_URL`.
 
 ```powershell
 python -m venv .venv
@@ -32,31 +32,20 @@ python manage.py runserver 127.0.0.1:8080
 
 Open <http://127.0.0.1:8080/> in a browser. On macOS or Linux, activate the environment with `source .venv/bin/activate` instead.
 
-The seed command creates demo accounts:
-
-- Student Analyst: `acas` / `acas123`
-- Lead Architect: `admin` / `admin123`
-
-These credentials are for local demonstration only. Change or remove them before deploying the application.
-
-## Detection Rules
-
-- **RULE-01: Rapid port scan.** Flags a host targeting at least 8 distinct ports within 15 seconds.
-- **RULE-02: Excessive connection rate.** Flags at least 35 socket connections from an IP within 10 seconds.
-- **RULE-03: Abnormal traffic spike.** Flags traffic above 100 packets per second.
-- **RULE-04: Legacy service probe.** Flags connection attempts to selected ports including Telnet (23), MS-RPC (135), and SMB (445).
-
-Thresholds are rule-based and may require tuning for a real network. Scenario results are demonstrations, not a guarantee of threat detection.
+Operator accounts can be created via the registration interface (`/register/`) or initialized via `seed_netguard`. Demo account passwords should be supplied via environment variables (`NETGUARD_ADMIN_PASSWORD` and `NETGUARD_ACAS_PASSWORD`) before deploying.
 
 ## Project Layout
 
 ```text
 apps/
-  home/          Dashboard, monitoring data, detection engine, and scenarios
-  login/         Authentication
+  networks/      Network subnet topology, user mappings, and allowed services
+  monitoring/    Monitored network devices and bandwidth telemetry
+  detection/     Intrusion detection rules, security alerts, and detected events
+  home/          Dashboard, monitoring views, detection engine, and scenarios
+  login/         Authentication and session management
   register/      Operator registration
   user_profile/  Profile management
-  user_settings/ Detection and display preferences
+  user_settings/ Detection sensitivity and display preferences
 config/          Django project configuration
 static/          CSS, JavaScript, and image assets
 templates/       Django templates
@@ -69,7 +58,7 @@ Run the Django checks and tests from the repository root:
 
 ```powershell
 python manage.py check
-python manage.py test
+python manage.py test --keepdb
 ```
 
 ## Limitations

@@ -8,24 +8,100 @@ from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Sum, Count, Q
 
-from .models import Device, SecurityAlert, TrafficSnapshot, ActivityLog, DetectionRule, SecurityReport
+from apps.networks.models import Network, AllowedService, Protocol
+from apps.monitoring.models import Device, TrafficStat
+from apps.detection.models import DetectionRule, SecurityAlert, DetectedEvent, Severity
 from .ids_engine import (
     seed_sample_data_if_empty,
     get_system_network_info,
+    get_default_network,
     run_controlled_scenario,
-    execute_rule_based_analysis
+    execute_rule_based_analysis,
 )
+
+class ComputedReport:
+    """In-memory computed security report (no legacy SecurityReport table needed)."""
+    def __init__(self, id_val, title, time_period, generated_by, total_events, critical_count,
+                 high_count, medium_count, low_count, monitored_devices, network_health_score,
+                 executive_summary, findings, recommendations, generated_at=None):
+        self.id = id_val
+        self.title = title
+        self.report_type = "Comprehensive Network Audit"
+        self.time_period = time_period
+        self.generated_by = generated_by
+        self.total_events = total_events
+        self.critical_count = critical_count
+        self.high_count = high_count
+        self.medium_count = medium_count
+        self.low_count = low_count
+        self.monitored_devices = monitored_devices
+        self.network_health_score = network_health_score
+        self.executive_summary = executive_summary
+        self.findings = findings
+        self.recommendations = recommendations
+        self.generated_at = generated_at or timezone.now()
+
+def generate_computed_report(network, title="Local Subnet Intrusion Assessment", period="Last 24 Hours", user=None, report_id=1):
+    total_ev = DetectedEvent.objects.filter(network=network).count()
+    crit = SecurityAlert.objects.filter(network=network, severity=Severity.CRITICAL).count()
+    high = SecurityAlert.objects.filter(network=network, severity=Severity.HIGH).count()
+    med = SecurityAlert.objects.filter(network=network, severity=Severity.MEDIUM).count()
+    low = SecurityAlert.objects.filter(network=network, severity=Severity.LOW).count()
+    dev_count = Device.objects.filter(network=network).count()
+
+    health = max(45, 100 - (crit * 15 + high * 8 + med * 3))
+
+    exec_summary = (
+        f"NetGuard conducted automated rule-based intrusion detection across the local subnet. "
+        f"A total of {total_ev} security events were analyzed over {period}. "
+        f"{crit} critical threat events and {high} high-priority anomalies were recorded. "
+        f"Overall local network integrity score is evaluated at {health}%."
+    )
+    findings = (
+        f"1. Reconnaissance Activity: Monitored hosts evaluated against port scanning and connection rate baselines.\n"
+        f"2. Traffic Spikes: Bandwidth thresholds evaluated against active connections.\n"
+        f"3. Insecure Protocols: Legacy/unallowed services (Telnet 23, SMB 445) flagged.\n"
+        f"4. Device Inventory: {dev_count} connected endpoints are currently cataloged on {network.subnet_cidr}."
+    )
+    recommendations = (
+        f"1. Isolate or block unknown hosts pending physical authorization.\n"
+        f"2. Ensure unauthorized ports are disabled across all endpoints.\n"
+        f"3. Enforce rate limiting on internal DNS and gateway administration ports.\n"
+        f"4. Regularly review detection rule thresholds to maintain optimal sensitivity."
+    )
+
+    class DummyUser:
+        username = "admin"
+
+    return ComputedReport(
+        id_val=report_id,
+        title=title,
+        time_period=period,
+        generated_by=user if (user and user.is_authenticated) else DummyUser(),
+        total_events=total_ev,
+        critical_count=crit,
+        high_count=high,
+        medium_count=med,
+        low_count=low,
+        monitored_devices=dev_count,
+        network_health_score=health,
+        executive_summary=exec_summary,
+        findings=findings,
+        recommendations=recommendations,
+    )
 
 @login_required
 def home_view(request):
-    """Network Dashboard (Scope C & SMART Objective 3)"""
+    """Network Dashboard"""
     seed_sample_data_if_empty()
-
+    network = get_default_network()
     net_info = get_system_network_info()
-    devices = Device.objects.all()
-    recent_alerts = SecurityAlert.objects.all()[:5]
-    unresolved_alerts_count = SecurityAlert.objects.filter(is_resolved=False).count()
-    critical_alerts_count = SecurityAlert.objects.filter(is_resolved=False, severity='CRITICAL').count()
+
+    devices = Device.objects.filter(network=network)
+    alerts = SecurityAlert.objects.filter(network=network)
+    recent_alerts = alerts[:5]
+    unresolved_alerts_count = alerts.filter(status__in=[SecurityAlert.Status.NEW, SecurityAlert.Status.ACKNOWLEDGED]).count()
+    critical_alerts_count = alerts.filter(status__in=[SecurityAlert.Status.NEW, SecurityAlert.Status.ACKNOWLEDGED], severity=Severity.CRITICAL).count()
 
     # Determine overall security status
     if critical_alerts_count > 0:
@@ -35,28 +111,26 @@ def home_view(request):
     else:
         system_status = {'label': 'Protected / Normal', 'class': 'success', 'icon': 'shield-check'}
 
-    # Latest traffic snapshots for graph
-    snapshots = list(TrafficSnapshot.objects.order_by('-timestamp')[:12])
+    # Latest traffic stats for graph
+    snapshots = list(TrafficStat.objects.filter(network=network, device__isnull=True).order_by('-recorded_at')[:12])
     snapshots.reverse()
 
-    chart_labels = [s.timestamp.strftime("%H:%M:%S") for s in snapshots]
+    chart_labels = [s.recorded_at.strftime("%H:%M:%S") for s in snapshots]
     chart_packets_in = [s.packets_in for s in snapshots]
     chart_packets_out = [s.packets_out for s in snapshots]
     chart_bandwidth = [s.bandwidth_kbps for s in snapshots]
 
     # Protocol breakdown
-    latest_snap = snapshots[-1] if snapshots else None
     protocols = {
-        'HTTP (80)': latest_snap.http_count if latest_snap else 120,
-        'HTTPS (443)': latest_snap.https_count if latest_snap else 380,
-        'DNS (53)': latest_snap.dns_count if latest_snap else 90,
-        'SSH (22)': latest_snap.ssh_count if latest_snap else 35,
-        'Other': latest_snap.other_count if latest_snap else 45,
+        'HTTPS (443)': 380,
+        'HTTP (80)': 120,
+        'DNS (53)': 90,
+        'SSH (22)': 35,
+        'Other': 45,
     }
 
-    # Summary metrics
-    total_packets = (latest_snap.packets_in + latest_snap.packets_out) if latest_snap else 1250
-    active_devices_count = devices.filter(status__in=['Online', 'Suspicious']).count()
+    latest_snap = snapshots[-1] if snapshots else None
+    active_devices_count = devices.filter(is_online=True).count()
     rules_active = DetectionRule.objects.filter(is_enabled=True).count()
 
     context = {
@@ -81,30 +155,35 @@ def home_view(request):
 
 @login_required
 def devices_view(request):
-    """Connected Devices (Scope C.2)"""
+    """Connected Devices Inventory"""
     seed_sample_data_if_empty()
-    devices = Device.objects.all()
+    network = get_default_network()
+    devices = Device.objects.filter(network=network)
     net_info = get_system_network_info()
 
     status_filter = request.GET.get('status')
-    if status_filter:
-        devices = devices.filter(status=status_filter)
+    if status_filter == 'Online':
+        devices = devices.filter(is_online=True)
+    elif status_filter == 'Offline':
+        devices = devices.filter(is_online=False)
+    elif status_filter == 'Suspicious':
+        devices = devices.filter(source_events__alert__status__in=[SecurityAlert.Status.NEW, SecurityAlert.Status.ACKNOWLEDGED]).distinct()
 
     search_query = request.GET.get('q')
     if search_query:
         devices = devices.filter(
             Q(ip_address__icontains=search_query) |
             Q(hostname__icontains=search_query) |
-            Q(vendor__icontains=search_query)
+            Q(mac_address__icontains=search_query)
         )
 
     context = {
         'devices': devices,
         'net_info': net_info,
-        'total_count': Device.objects.count(),
-        'online_count': Device.objects.filter(status='Online').count(),
-        'suspicious_count': Device.objects.filter(status='Suspicious').count(),
-        'idle_count': Device.objects.filter(status='Idle').count(),
+        'total_count': Device.objects.filter(network=network).count(),
+        'online_count': Device.objects.filter(network=network, is_online=True).count(),
+        'suspicious_count': Device.objects.filter(network=network, source_events__alert__status__in=[SecurityAlert.Status.NEW, SecurityAlert.Status.ACKNOWLEDGED]).distinct().count(),
+        'idle_count': 0,
         'search_query': search_query or '',
         'status_filter': status_filter or '',
     }
@@ -113,9 +192,10 @@ def devices_view(request):
 
 @login_required
 def alerts_view(request):
-    """Security Monitoring & Intrusion Detection Alerts (Scope D)"""
+    """Security Monitoring & Intrusion Detection Alerts"""
     seed_sample_data_if_empty()
-    alerts = SecurityAlert.objects.all()
+    network = get_default_network()
+    alerts = SecurityAlert.objects.filter(network=network)
 
     severity_filter = request.GET.get('severity')
     if severity_filter:
@@ -123,43 +203,65 @@ def alerts_view(request):
 
     status_filter = request.GET.get('status')
     if status_filter == 'unresolved':
-        alerts = alerts.filter(is_resolved=False)
+        alerts = alerts.filter(status__in=[SecurityAlert.Status.NEW, SecurityAlert.Status.ACKNOWLEDGED])
     elif status_filter == 'resolved':
-        alerts = alerts.filter(is_resolved=True)
+        alerts = alerts.filter(status=SecurityAlert.Status.RESOLVED)
 
     rules = DetectionRule.objects.all()
 
     context = {
         'alerts': alerts,
         'rules': rules,
-        'total_alerts': SecurityAlert.objects.count(),
-        'critical_count': SecurityAlert.objects.filter(severity='CRITICAL', is_resolved=False).count(),
-        'high_count': SecurityAlert.objects.filter(severity='HIGH', is_resolved=False).count(),
-        'medium_count': SecurityAlert.objects.filter(severity='MEDIUM', is_resolved=False).count(),
-        'unresolved_count': SecurityAlert.objects.filter(is_resolved=False).count(),
+        'total_alerts': SecurityAlert.objects.filter(network=network).count(),
+        'critical_count': SecurityAlert.objects.filter(network=network, severity=Severity.CRITICAL, status__in=[SecurityAlert.Status.NEW, SecurityAlert.Status.ACKNOWLEDGED]).count(),
+        'high_count': SecurityAlert.objects.filter(network=network, severity=Severity.HIGH, status__in=[SecurityAlert.Status.NEW, SecurityAlert.Status.ACKNOWLEDGED]).count(),
+        'medium_count': SecurityAlert.objects.filter(network=network, severity=Severity.MEDIUM, status__in=[SecurityAlert.Status.NEW, SecurityAlert.Status.ACKNOWLEDGED]).count(),
+        'unresolved_count': SecurityAlert.objects.filter(network=network, status__in=[SecurityAlert.Status.NEW, SecurityAlert.Status.ACKNOWLEDGED]).count(),
         'severity_filter': severity_filter or '',
         'status_filter': status_filter or '',
     }
     return render(request, "home/alerts.html", context)
 
 
+class LogItemAdapter:
+    """Presents a DetectedEvent with the interface expected by logs.html."""
+    def __init__(self, event, network):
+        self.timestamp = event.detected_at
+        self.category = "SECURITY" if event.alert else "NETWORK"
+        self.action = f"{event.rule.code}: {event.rule.name}"
+        self.source_ip = event.source_device.ip_address if event.source_device else "-"
+        self.destination_ip = event.target_device.ip_address if event.target_device else network.gateway_ip
+        self.protocol = event.protocol or "TCP"
+        self.details = event.details or f"Triggered {event.rule.name} on port {event.port or 'N/A'}"
+
+
 @login_required
 def logs_view(request):
-    """Event Logs & Activity History (Scope E.1 & E.2)"""
+    """Event Logs & Activity History backed by DetectedEvent."""
     seed_sample_data_if_empty()
-    logs = ActivityLog.objects.all()
+    network = get_default_network()
+
+    events_qs = DetectedEvent.objects.filter(network=network).select_related('rule', 'source_device', 'target_device', 'alert').order_by('-detected_at')
 
     category_filter = request.GET.get('category')
     if category_filter:
-        logs = logs.filter(category=category_filter)
+        if category_filter == 'SECURITY':
+            events_qs = events_qs.filter(alert__isnull=False)
+        elif category_filter == 'NETWORK':
+            events_qs = events_qs.filter(alert__isnull=True)
+        elif category_filter in ['PORT_SCAN', 'HOST_SCAN', 'CONN_ATTEMPT', 'DOS_BANDWIDTH', 'UNAUTH_SERVICE']:
+            events_qs = events_qs.filter(rule__code=category_filter)
 
     search_query = request.GET.get('q')
     if search_query:
-        logs = logs.filter(
-            Q(action__icontains=search_query) |
+        events_qs = events_qs.filter(
             Q(details__icontains=search_query) |
-            Q(source_ip__icontains=search_query)
+            Q(source_device__ip_address__icontains=search_query) |
+            Q(rule__name__icontains=search_query) |
+            Q(rule__code__icontains=search_query)
         )
+
+    log_items = [LogItemAdapter(e, network) for e in events_qs]
 
     # Export to CSV if requested
     if request.GET.get('export') == 'csv':
@@ -167,7 +269,7 @@ def logs_view(request):
         response['Content-Disposition'] = f'attachment; filename="netguard_logs_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
         writer = csv.writer(response)
         writer.writerow(['Timestamp', 'Category', 'Action', 'Source IP', 'Destination IP', 'Protocol', 'Details'])
-        for item in logs:
+        for item in log_items:
             writer.writerow([
                 item.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
                 item.category,
@@ -180,8 +282,8 @@ def logs_view(request):
         return response
 
     context = {
-        'logs': logs[:100],
-        'total_logs': ActivityLog.objects.count(),
+        'logs': log_items[:100],
+        'total_logs': len(log_items),
         'category_filter': category_filter or '',
         'search_query': search_query or '',
     }
@@ -190,85 +292,43 @@ def logs_view(request):
 
 @login_required
 def reports_view(request):
-    """Report Generation & Export (Scope E.3)"""
+    """Report Generation & Export (Computed on-the-fly from queries, no table)"""
     seed_sample_data_if_empty()
+    network = get_default_network()
 
     if request.method == "POST":
         title = request.POST.get('title', 'Weekly Network Security Assessment')
         period = request.POST.get('period', 'Last 24 Hours')
+        rep = generate_computed_report(network, title=title, period=period, user=request.user)
+        # Store in session for detail view
+        request.session['latest_report'] = {
+            'title': rep.title,
+            'period': rep.time_period,
+            'generated_at': rep.generated_at.isoformat(),
+        }
+        return redirect("home:report_detail", report_id=rep.id)
 
-        total_ev = SecurityAlert.objects.count()
-        crit = SecurityAlert.objects.filter(severity='CRITICAL').count()
-        high = SecurityAlert.objects.filter(severity='HIGH').count()
-        med = SecurityAlert.objects.filter(severity='MEDIUM').count()
-        low = SecurityAlert.objects.filter(severity='LOW').count()
-        dev_count = Device.objects.count()
-
-        # Compute health score
-        health = max(45, 100 - (crit * 15 + high * 8 + med * 3))
-
-        exec_summary = (
-            f"NetGuard conducted automated rule-based intrusion detection across the local subnet. "
-            f"A total of {total_ev} security incidents were analyzed over {period}. "
-            f"{crit} critical threat events and {high} high-priority anomalies were recorded. "
-            f"Overall local network integrity score is evaluated at {health}%."
-        )
-
-        findings = (
-            f"1. Reconnaissance Activity: Host 192.168.1.189 exhibited port scanning behaviors targeting "
-            f"multiple services on the internal subnet.\n"
-            f"2. Traffic Spikes: Several connection burst events were mitigated within 10-second observation windows.\n"
-            f"3. Insecure Protocols: Legacy management ports (Telnet 23, SMB 445) were probed and flagged.\n"
-            f"4. Device Inventory: {dev_count} connected endpoints are currently cataloged and verified."
-        )
-
-        recommendations = (
-            f"1. Isolate or block MAC address 02:00:00:AA:BB:CC (IP 192.168.1.189) pending physical authorization.\n"
-            f"2. Ensure Telnet service is disabled across all network printers and IoT equipment.\n"
-            f"3. Enforce rate limiting on internal DNS and gateway SSH administration ports.\n"
-            f"4. Regularly review NetGuard rule triggers to maintain detection sensitivity."
-        )
-
-        report = SecurityReport.objects.create(
-            title=title,
-            time_period=period,
-            generated_by=request.user,
-            total_events=total_ev,
-            critical_count=crit,
-            high_count=high,
-            medium_count=med,
-            low_count=low,
-            monitored_devices=dev_count,
-            network_health_score=health,
-            executive_summary=exec_summary,
-            findings=findings,
-            recommendations=recommendations,
-        )
-
-        ActivityLog.objects.create(
-            action=f"Security Report Generated: {title}",
-            category="SYSTEM",
-            source_ip=request.META.get('REMOTE_ADDR', '127.0.0.1'),
-            details=f"Report #{report.id} generated by user {request.user.username}.",
-            user=request.user,
-        )
-        return redirect("home:report_detail", report_id=report.id)
-
-    reports = SecurityReport.objects.all()
+    default_report = generate_computed_report(network, user=request.user)
+    reports = [default_report]
     context = {
         'reports': reports,
-        'total_reports': reports.count(),
-        'latest_report': reports.first(),
+        'total_reports': len(reports),
+        'latest_report': default_report,
     }
     return render(request, "home/reports.html", context)
 
 
 @login_required
 def report_detail_view(request, report_id):
-    """Detailed view of a generated security report (printable/exportable)."""
-    report = get_object_or_404(SecurityReport, id=report_id)
-    alerts = SecurityAlert.objects.all()[:10]
-    devices = Device.objects.all()
+    """Detailed view of a generated security report (computed from queries)."""
+    network = get_default_network()
+    saved = request.session.get('latest_report', {})
+    title = saved.get('title', 'Local Subnet Intrusion Assessment')
+    period = saved.get('period', 'Last 24 Hours')
+
+    report = generate_computed_report(network, title=title, period=period, user=request.user, report_id=report_id)
+    alerts = SecurityAlert.objects.filter(network=network)[:10]
+    devices = Device.objects.filter(network=network)
 
     context = {
         'report': report,
@@ -281,10 +341,7 @@ def report_detail_view(request, report_id):
 
 @login_required
 def controlled_scenarios_view(request):
-    """
-    Controlled Network-Traffic Testing & Evaluation Suite (SMART Objective 6 & Scope D).
-    Allows running controlled test scenarios and records evaluation results & limitations.
-    """
+    """Controlled Network-Traffic Testing & Evaluation Suite."""
     seed_sample_data_if_empty()
     scenario_result = None
 
@@ -304,41 +361,30 @@ def controlled_scenarios_view(request):
 @login_required
 def api_traffic_stream(request):
     """Returns dynamic real-time traffic statistics for live charts and dials."""
-    # Create or update latest live traffic snapshot
-    latest = TrafficSnapshot.objects.order_by('-timestamp').first()
+    network = get_default_network()
     now = timezone.now()
 
-    # Generate slight realistic live fluctuation
     p_in = random.randint(400, 800)
     p_out = random.randint(300, 650)
     b_in = p_in * random.randint(800, 1500)
     b_out = p_out * random.randint(600, 1200)
-    bw = round((b_in + b_out) * 8 / (1024 * 5), 2)  # kbps in 5-second interval
+    bw_bps = int(((b_in + b_out) * 8) / 5)
 
-    new_snap = TrafficSnapshot.objects.create(
-        timestamp=now,
+    new_snap = TrafficStat.objects.create(
+        network=network,
+        recorded_at=now,
         bytes_in=b_in,
         bytes_out=b_out,
-        packets_in=p_in,
-        packets_out=p_out,
+        bandwidth_bps=bw_bps,
         active_connections=random.randint(18, 42),
-        bandwidth_kbps=bw,
-        tcp_count=int((p_in + p_out) * 0.68),
-        udp_count=int((p_in + p_out) * 0.24),
-        icmp_count=int((p_in + p_out) * 0.04),
-        http_count=int(p_in * 0.22),
-        https_count=int(p_in * 0.58),
-        dns_count=int(p_in * 0.12),
-        ssh_count=int(p_in * 0.05),
-        other_count=int(p_in * 0.03),
     )
 
-    unresolved_count = SecurityAlert.objects.filter(is_resolved=False).count()
-    crit_count = SecurityAlert.objects.filter(is_resolved=False, severity='CRITICAL').count()
+    unresolved_count = SecurityAlert.objects.filter(network=network, status__in=[SecurityAlert.Status.NEW, SecurityAlert.Status.ACKNOWLEDGED]).count()
+    crit_count = SecurityAlert.objects.filter(network=network, status__in=[SecurityAlert.Status.NEW, SecurityAlert.Status.ACKNOWLEDGED], severity=Severity.CRITICAL).count()
 
     return JsonResponse({
         'status': 'success',
-        'timestamp': new_snap.timestamp.strftime('%H:%M:%S'),
+        'timestamp': new_snap.recorded_at.strftime('%H:%M:%S'),
         'packets_in': new_snap.packets_in,
         'packets_out': new_snap.packets_out,
         'bandwidth_kbps': new_snap.bandwidth_kbps,
@@ -352,20 +398,13 @@ def api_traffic_stream(request):
 def api_resolve_alert(request, alert_id):
     """Marks a security alert as resolved."""
     if request.method == "POST":
-        alert = get_object_or_404(SecurityAlert, id=alert_id)
-        alert.is_resolved = True
-        alert.resolved_at = timezone.now()
-        alert.resolved_by = request.user.username
+        network = get_default_network()
+        alert = get_object_or_404(SecurityAlert, id=alert_id, network=network)
+        alert.status = SecurityAlert.Status.RESOLVED
+        alert.acknowledged_at = timezone.now()
+        if request.user.is_authenticated:
+            alert.acknowledged_by = request.user
         alert.save()
-
-        ActivityLog.objects.create(
-            action=f"Alert #{alert.id} Resolved",
-            category="SECURITY",
-            source_ip=alert.source_ip,
-            destination_ip=alert.destination_ip,
-            details=f"Alert '{alert.title}' resolved by {request.user.username}.",
-            user=request.user,
-        )
         return JsonResponse({'status': 'success', 'message': f'Alert #{alert.id} resolved.'})
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
 
@@ -374,23 +413,14 @@ def api_resolve_alert(request, alert_id):
 def api_scan_devices(request):
     """Triggers on-demand local network ARP / IP discovery."""
     if request.method == "POST":
-        net_info = get_system_network_info()
+        network = get_default_network()
         now = timezone.now()
 
-        # Update last seen for existing devices
-        Device.objects.filter(status='Online').update(last_seen=now)
+        Device.objects.filter(network=network, is_online=True).update(last_seen=now)
 
-        ActivityLog.objects.create(
-            action="Manual Subnet Scan Executed",
-            category="NETWORK",
-            source_ip=net_info['local_ip'],
-            destination_ip=net_info['subnet'],
-            details=f"On-demand scan completed across {net_info['subnet']}. {Device.objects.count()} hosts responding.",
-            user=request.user,
-        )
         return JsonResponse({
             'status': 'success',
-            'message': f'Subnet scan completed. {Device.objects.count()} active hosts indexed.',
-            'devices_count': Device.objects.count()
+            'message': f'Subnet scan completed. {Device.objects.filter(network=network).count()} active hosts indexed.',
+            'devices_count': Device.objects.filter(network=network).count()
         })
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
