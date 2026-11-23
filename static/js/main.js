@@ -1,6 +1,6 @@
 /**
  * NetGuard IDS - Main Application JavaScript
- * Real-time Telemetry, Theme Management & Interactivity
+ * Demo Telemetry, Theme Management & Interactivity
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -138,16 +138,25 @@ function initAboutModal() {
 }
 
 /* ==========================================================================
-   6. Auto-Refresh Real-time Traffic Polling
+   6. Auto-Refresh Simulated Traffic Polling
    ========================================================================== */
 function initAutoTrafficPolling() {
-    // Only poll if on dashboard page
     const liveThroughputEl = document.getElementById('liveThroughputStat');
-    if (!liveThroughputEl) return;
+    const runtimeSettings = document.getElementById('dashboardRuntimeSettings');
+    if (!liveThroughputEl || !runtimeSettings) return;
 
-    setInterval(() => {
-        fetch('/api/traffic-stream/')
-            .then(res => res.json())
+    let lastAlertId = Number(runtimeSettings.dataset.alertCursor || 0);
+    const refreshSeconds = Number(runtimeSettings.dataset.refreshInterval || 5);
+    const refreshInterval = [3, 5, 10, 30].includes(refreshSeconds)
+        ? refreshSeconds * 1000
+        : 5000;
+
+    function pollDashboard() {
+        fetch(`/api/traffic-stream/?after_id=${lastAlertId}`)
+            .then(res => {
+                if (!res.ok) throw new Error(`Dashboard polling failed (${res.status})`);
+                return res.json();
+            })
             .then(data => {
                 if (data.status === 'success') {
                     if (liveThroughputEl) {
@@ -161,12 +170,55 @@ function initAutoTrafficPolling() {
                     if (alertCountEl) {
                         alertCountEl.textContent = data.unresolved_alerts;
                     }
+                    data.new_alerts.forEach(alertItem => {
+                        lastAlertId = Math.max(lastAlertId, alertItem.id);
+                        if (data.sound_alerts) playAlertChime();
+                        if (
+                            data.desktop_alerts &&
+                            'Notification' in window &&
+                            Notification.permission === 'granted'
+                        ) {
+                            new Notification(alertItem.title, {
+                                body: alertItem.message,
+                                tag: `netguard-alert-${alertItem.id}`
+                            });
+                        }
+                    });
                 }
             })
-            .catch(() => {
-                // Silently skip if network error during polling
+            .catch(error => {
+                console.error(error);
             });
-    }, 6000);
+    }
+
+    window.setInterval(pollDashboard, refreshInterval);
+}
+
+function playAlertChime() {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    try {
+        const audioContext = new AudioContextClass();
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        oscillator.frequency.value = 880;
+        gain.gain.value = 0.08;
+        oscillator.connect(gain);
+        gain.connect(audioContext.destination);
+        oscillator.addEventListener('ended', () => audioContext.close());
+        audioContext.resume()
+            .then(() => {
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.18);
+            })
+            .catch(error => {
+                console.error('Could not resume audio for the alert chime:', error);
+                audioContext.close();
+            });
+    } catch (error) {
+        console.error('Could not play the alert chime:', error);
+    }
 }
 
 /* ==========================================================================
@@ -209,40 +261,7 @@ window.resolveAlert = function(alertId, btnElement) {
    8. Global Subnet Scanner Helper
    ========================================================================== */
 window.triggerSubnetScan = function(btnElement) {
-    if (btnElement) {
-        btnElement.disabled = true;
-        btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Scanning Subnet...';
-    }
-
-    const csrfToken = getCookie('csrftoken');
-
-    fetch('/api/scan-devices/', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': csrfToken,
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === 'success') {
-            alert(data.message);
-            location.reload();
-        } else {
-            alert('Scan error: ' + data.message);
-            if (btnElement) {
-                btnElement.disabled = false;
-                btnElement.innerHTML = '<i class="fa-solid fa-radar"></i> Scan Subnet Now';
-            }
-        }
-    })
-    .catch(err => {
-        alert('Scan error: ' + err);
-        if (btnElement) {
-            btnElement.disabled = false;
-            btnElement.innerHTML = '<i class="fa-solid fa-radar"></i> Scan Subnet Now';
-        }
-    });
+    alert('Live subnet discovery is not configured. The device inventory contains sample data.');
 };
 
 /* Utility: Retrieve Django CSRF Cookie */
