@@ -39,10 +39,10 @@
             <!-- Subnet Badge -->
             <div class="subnet-banner">
                 <div class="subnet-info">
-                    <span class="subnet-label"><i class="fa-solid fa-network-wired"></i> Monitored Subnet</span>
-                    <span class="subnet-value">192.168.1.0/24</span>
+                    <span class="subnet-label"><i class="fa-solid fa-circle-info"></i> Data Mode</span>
+                    <span class="subnet-value">Synthetic demo</span>
                 </div>
-                <span class="status-dot-pulse online" title="Interface Active"></span>
+                <span class="status-dot-pulse" title="Live collection is not configured"></span>
             </div>
 
             <!-- Navigation Links -->
@@ -144,7 +144,7 @@
                 <div class="header-center">
                     <div class="status-indicator-pill" id="headerStatusPill">
                         <span class="status-pulse-dot"></span>
-                        <span class="status-text">SYSTEM DEFENSE ACTIVE</span>
+                        <span class="status-text">SIMULATED DATA MODE</span>
                     </div>
                     <div class="live-clock" id="liveClockDisplay">
                         <i class="fa-regular fa-clock"></i> <span id="clockTime">--:--:--</span>
@@ -212,10 +212,10 @@
             <!-- Footer -->
             <footer class="app-footer">
                 <div class="footer-left">
-                    <strong>NetGuard</strong>: Local Network Monitoring and Intrusion Detection System &bull; <em>“See Your Network. Detect the Threats.”</em>
+                    <strong>NetGuard</strong>: Rule-Evaluation Demo &bull; <em>“Explore generated scenarios and detection rules.”</em>
                 </div>
                 <div class="footer-right">
-                    <span>CSIT327 Final Project &bull; Student: Acas &bull; All Rules Active</span>
+                    <span>Demo data only &bull; No live packet capture or subnet discovery</span>
                 </div>
             </footer>
         </div>
@@ -244,9 +244,9 @@
                     <section class="info-section">
                         <h3><i class="fa-solid fa-list-check"></i> SMART Objectives Achieved</h3>
                         <ul class="styled-list">
-                            <li><strong>1. Functional Monitoring System:</strong> Developed a responsive web-based network monitoring platform collecting and displaying local subnet activity in real-time.</li>
-                            <li><strong>2. Three+ Rule-Based Detection Mechanisms:</strong> Implemented Rule 1 (Rapid Port Scan Detection), Rule 2 (Excessive Connection Rate / Flood), Rule 3 (Abnormal Traffic Bandwidth Spike), and Rule 4 (Suspicious Legacy Port Probes).</li>
-                            <li><strong>3. Comprehensive Dashboard:</strong> Provides connected devices inventory, incoming/outgoing traffic statistics, protocol breakdown, and real-time activity graphs.</li>
+                            <li><strong>1. Monitoring Demo:</strong> Provides a responsive interface over generated sample inventory and telemetry. Live packet capture and subnet discovery are not configured.</li>
+                            <li><strong>2. Rule-Based Detection:</strong> Evaluates generated scenario events using configured port-scan, host-scan, connection-attempt, bandwidth, and unauthorized-service rules.</li>
+                            <li><strong>3. Dashboard:</strong> Shows sample device inventory, simulated traffic statistics, an illustrative protocol breakdown, and generated activity graphs.</li>
                             <li><strong>4. User Authentication & Profile:</strong> Secure user registration, credential authentication, role-based profile management, and session logout.</li>
                             <li><strong>5. Relational Database Logging:</strong> Network events, security alerts, and system activities are persisted and queryable in a relational database.</li>
                             <li><strong>6. Controlled Scenario Evaluation:</strong> Dedicated Scenario Testing Lab allows testing controlled traffic scenarios and documents detection latency, verdicts, and limitations.</li>
@@ -256,10 +256,10 @@
                     <section class="info-section">
                         <h3><i class="fa-solid fa-triangle-exclamation"></i> Documented System Limitations</h3>
                         <ul class="styled-list limitations-list">
-                            <li>NetGuard focuses on designated local network subnets and does not monitor external wide-area Internet traffic.</li>
-                            <li>Rule-based detection identifies predefined behavioral patterns rather than full enterprise-level machine learning IDS/IPS.</li>
-                            <li>The system observes and alerts on anomalies but does not actively execute offensive countermeasures or packet tampering.</li>
-                            <li>Advanced encrypted payload payload inspection is outside scope (analysis relies on IP headers, port signatures, and rate metrics).</li>
+                            <li>Device inventory and traffic values are sample/simulated data; the application does not currently collect live packets, query ARP, or scan ports.</li>
+                            <li>Scenario results are generated test inputs evaluated by the database-configured rule thresholds and time windows; they do not represent observed incidents.</li>
+                            <li>Device vendor, operating system, role, and open ports are unknown unless a future collection component supplies them.</li>
+                            <li>The application does not send network traffic, block devices, or inspect encrypted payloads.</li>
                         </ul>
                     </section>
                 </div>

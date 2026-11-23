@@ -5,7 +5,10 @@ Tables
     monitoring_device       -> Device       (connected devices)
     monitoring_trafficstat  -> TrafficStat  (traffic statistics samples)
 """
+from datetime import timedelta
+
 from django.db import models
+from django.utils import timezone
 
 from apps.networks.models import Network
 
@@ -36,37 +39,31 @@ class Device(models.Model):
     def status(self):
         if self.source_events.filter(alert__status__in=['NEW', 'ACKNOWLEDGED']).exists():
             return "Suspicious"
-        return "Online" if self.is_online else "Offline"
+        if not self.is_online:
+            return "Offline"
+        if self.last_seen < timezone.now() - timedelta(minutes=5):
+            return "Idle"
+        return "Online"
 
     @property
     def vendor(self):
-        return "Local Network Device"
+        return "Unknown"
 
     @property
     def os_info(self):
-        return "Network OS"
+        return "Not detected"
 
     @property
     def device_type(self):
-        if self.hostname and "gateway" in self.hostname.lower():
-            return "Gateway"
-        if self.hostname and "server" in self.hostname.lower():
-            return "Server"
-        if self.hostname and "printer" in self.hostname.lower():
-            return "IoT"
-        if self.hostname and "macbook" in self.hostname.lower():
-            return "Laptop"
-        return "Workstation"
+        return "Unknown"
 
     @property
     def open_ports(self):
-        services = self.network.allowed_services.all()
-        return ", ".join(str(s.port) for s in services) if services.exists() else "80, 443"
+        return "Not scanned"
 
     @property
     def packet_count(self):
-        stat = self.traffic_stats.first()
-        return stat.bandwidth_bps if stat else 0
+        return None
 
     def __str__(self):
         return f"{self.ip_address} ({self.mac_address})"

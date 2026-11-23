@@ -8,7 +8,7 @@
 <div class="content-header">
     <div class="content-title-block">
         <h2>Controlled Scenario Testing & Evaluation Suite</h2>
-        <p>SMART Objective 6: Evaluate the rule-based detection system using controlled network-traffic scenarios and document detection results and limitations.</p>
+        <p>All scenarios use generated test events; they do not capture or send network traffic. Results evaluate the configured rule thresholds and time windows.</p>
     </div>
 </div>
 
@@ -120,7 +120,7 @@
         </div>
         <div class="card-body">
             <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
-                Host <code>192.168.1.189</code> executes rapid TCP SYN discovery across 14 well-known ports within 3.5 seconds. Evaluates <strong>Rule 1 (Rapid Port Scan Detection)</strong>.
+                A synthetic local host probes distinct ports within the configured time window. Evaluates <strong>PORT_SCAN</strong> using its database threshold.
             </p>
             <form method="post">
                 {% csrf_token %}
@@ -132,7 +132,30 @@
         </div>
     </div>
 
-    <!-- Scenario 2: Connection Burst -->
+    <!-- Host scan -->
+    <div class="content-card">
+        <div class="card-header">
+            <div class="card-title-group">
+                <i class="fa-solid fa-network-wired" style="color: var(--color-danger);"></i>
+                <h3>Scenario 2: Local Host Scan</h3>
+            </div>
+            <span class="pill pill-danger">HOST_SCAN</span>
+        </div>
+        <div class="card-body">
+            <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+                Synthetic probes target the same port across local subnet addresses. The result depends on available hosts and the configured threshold.
+            </p>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="scenario_key" value="host_scan">
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="fa-solid fa-bolt"></i> Simulate Host Scan
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scenario 3: Connection Burst -->
     <div class="content-card">
         <div class="card-header">
             <div class="card-title-group">
@@ -143,7 +166,7 @@
         </div>
         <div class="card-body">
             <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
-                Host <code>192.168.1.204</code> initiates 48 consecutive TCP socket connections in 4.0 seconds toward local NAS server. Evaluates <strong>Rule 2 (Excessive Connection Rate)</strong>.
+                A synthetic local host generates repeated connection-attempt events. Evaluates <strong>CONN_ATTEMPT</strong> using its database threshold and time window.
             </p>
             <form method="post">
                 {% csrf_token %}
@@ -155,7 +178,7 @@
         </div>
     </div>
 
-    <!-- Scenario 3: Abnormal Bandwidth Spike -->
+    <!-- Scenario 4: Abnormal Bandwidth Spike -->
     <div class="content-card">
         <div class="card-header">
             <div class="card-title-group">
@@ -166,7 +189,7 @@
         </div>
         <div class="card-body">
             <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
-                Host <code>192.168.1.140</code> produces 650 packets in 4.0s (162.5 pkt/s), exceeding typical network thresholds. Evaluates <strong>Rule 3 (Abnormal Traffic Spike)</strong>.
+                A synthetic bandwidth value is compared directly to the configured <strong>DOS_BANDWIDTH</strong> threshold and time window.
             </p>
             <form method="post">
                 {% csrf_token %}
@@ -178,7 +201,7 @@
         </div>
     </div>
 
-    <!-- Scenario 4: Suspicious Port Probing -->
+    <!-- Scenario 5: Suspicious Port Probing -->
     <div class="content-card">
         <div class="card-header">
             <div class="card-title-group">

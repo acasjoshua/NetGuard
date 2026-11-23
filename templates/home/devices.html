@@ -8,11 +8,11 @@
 <div class="content-header">
     <div class="content-title-block">
         <h2>Network Endpoint Inventory</h2>
-        <p>Active IP addresses, MAC hardware addresses, hostnames, and exposed ports detected on <code>{{ net_info.subnet }}</code></p>
+        <p>Sample inventory for <code>{{ net_info.subnet }}</code>. Host discovery, vendor/OS detection, and port scanning are not configured; displayed inventory data is synthetic.</p>
     </div>
     <div class="content-actions">
-        <button class="btn btn-primary" onclick="triggerSubnetScan(this)">
-            <i class="fa-solid fa-radar"></i> Scan Subnet Now
+        <button class="btn btn-primary" type="button" disabled title="Live subnet discovery is not configured">
+            <i class="fa-solid fa-ban"></i> Live Discovery Unavailable
         </button>
     </div>
 </div>
@@ -23,7 +23,7 @@
         <div class="stat-data">
             <span class="stat-label">Total Cataloged</span>
             <span class="stat-number">{{ total_count }}</span>
-            <span class="stat-desc">Endpoints indexed</span>
+            <span class="stat-desc">Sample records</span>
         </div>
         <div class="stat-icon"><i class="fa-solid fa-list-ol"></i></div>
     </div>
@@ -31,7 +31,7 @@
         <div class="stat-data">
             <span class="stat-label">Online Active</span>
             <span class="stat-number">{{ online_count }}</span>
-            <span class="stat-desc">Responding to ARP / Ping</span>
+            <span class="stat-desc">Recent sample activity</span>
         </div>
         <div class="stat-icon"><i class="fa-solid fa-circle-check"></i></div>
     </div>
@@ -47,7 +47,7 @@
         <div class="stat-data">
             <span class="stat-label">Idle / Standby</span>
             <span class="stat-number">{{ idle_count }}</span>
-            <span class="stat-desc">Low traffic volume</span>
+            <span class="stat-desc">No recent activity in 5 minutes</span>
         </div>
         <div class="stat-icon"><i class="fa-solid fa-clock"></i></div>
     </div>
@@ -58,7 +58,7 @@
     <div class="card-body" style="padding: 1.25rem;">
         <form method="get" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
             <div style="flex: 1; min-width: 240px;">
-                <input type="text" name="q" class="form-control" placeholder="Search by IP address, hostname, or manufacturer..." value="{{ search_query }}">
+                <input type="text" name="q" class="form-control" placeholder="Search by IP address, hostname, or MAC address..." value="{{ search_query }}">
             </div>
             <div style="min-width: 160px;">
                 <select name="status" class="form-control">
@@ -108,7 +108,7 @@
                     <td class="mono-font" style="font-size: 0.82rem; color: var(--text-muted);">{{ dev.mac_address|default:'00:00:00:00:00:00' }}</td>
                     <td style="font-weight: 600; color: var(--text-primary);">{{ dev.hostname|default:'Unknown Node' }}</td>
                     <td><span class="pill pill-info">{{ dev.device_type }}</span></td>
-                    <td>{{ dev.vendor|default:'Generic NIC' }}</td>
+                    <td>{{ dev.vendor }}</td>
                     <td style="font-size: 0.82rem; color: var(--text-secondary);">{{ dev.os_info }}</td>
                     <td>
                         {% if dev.status == 'Online' %}

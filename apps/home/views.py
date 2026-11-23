@@ -6,18 +6,25 @@ from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from datetime import timedelta
-from django.db.models import Sum, Count, Q
+from django.db.models import Q
 
-from apps.networks.models import Network, AllowedService, Protocol
 from apps.monitoring.models import Device, TrafficStat
 from apps.detection.models import DetectionRule, SecurityAlert, DetectedEvent, Severity
+from apps.user_settings.models import UserSettings
 from .ids_engine import (
     seed_sample_data_if_empty,
     get_system_network_info,
     get_default_network,
+    is_in_network_subnet,
     run_controlled_scenario,
-    execute_rule_based_analysis,
 )
+
+def _local_devices(network):
+    return [
+        device
+        for device in Device.objects.filter(network=network)
+        if is_in_network_subnet(network, device.ip_address)
+    ]
 
 class ComputedReport:
     """In-memory computed security report (no legacy SecurityReport table needed)."""
@@ -47,21 +54,22 @@ def generate_computed_report(network, title="Local Subnet Intrusion Assessment",
     high = SecurityAlert.objects.filter(network=network, severity=Severity.HIGH).count()
     med = SecurityAlert.objects.filter(network=network, severity=Severity.MEDIUM).count()
     low = SecurityAlert.objects.filter(network=network, severity=Severity.LOW).count()
-    dev_count = Device.objects.filter(network=network).count()
+    dev_count = len(_local_devices(network))
 
     health = max(45, 100 - (crit * 15 + high * 8 + med * 3))
 
     exec_summary = (
-        f"NetGuard conducted automated rule-based intrusion detection across the local subnet. "
-        f"A total of {total_ev} security events were analyzed over {period}. "
-        f"{crit} critical threat events and {high} high-priority anomalies were recorded. "
-        f"Overall local network integrity score is evaluated at {health}%."
+        f"This report summarizes sample records and generated rule-evaluation events "
+        f"for {period}; it is not based on live network collection. "
+        f"A total of {total_ev} sample events are stored. "
+        f"{crit} critical and {high} high-severity sample alerts are recorded. "
+        f"Sample-data indicator score: {health}%."
     )
     findings = (
-        f"1. Reconnaissance Activity: Monitored hosts evaluated against port scanning and connection rate baselines.\n"
-        f"2. Traffic Spikes: Bandwidth thresholds evaluated against active connections.\n"
-        f"3. Insecure Protocols: Legacy/unallowed services (Telnet 23, SMB 445) flagged.\n"
-        f"4. Device Inventory: {dev_count} connected endpoints are currently cataloged on {network.subnet_cidr}."
+        f"1. Rule evaluation: Generated events are checked against configured detection rules.\n"
+        f"2. Traffic rates and device activity are illustrative sample data, not measurements.\n"
+        f"3. Vendor, OS, and open-port details are not collected.\n"
+        f"4. {dev_count} sample inventory records are assigned to {network.subnet_cidr}."
     )
     recommendations = (
         f"1. Isolate or block unknown hosts pending physical authorization.\n"
@@ -96,8 +104,9 @@ def home_view(request):
     seed_sample_data_if_empty()
     network = get_default_network()
     net_info = get_system_network_info()
+    user_settings, _ = UserSettings.objects.get_or_create(user=request.user)
 
-    devices = Device.objects.filter(network=network)
+    devices = _local_devices(network)
     alerts = SecurityAlert.objects.filter(network=network)
     recent_alerts = alerts[:5]
     unresolved_alerts_count = alerts.filter(status__in=[SecurityAlert.Status.NEW, SecurityAlert.Status.ACKNOWLEDGED]).count()
@@ -105,11 +114,11 @@ def home_view(request):
 
     # Determine overall security status
     if critical_alerts_count > 0:
-        system_status = {'label': 'Threats Active', 'class': 'danger', 'icon': 'exclamation-triangle'}
+        system_status = {'label': 'Sample Critical Alerts', 'class': 'danger', 'icon': 'exclamation-triangle'}
     elif unresolved_alerts_count > 0:
-        system_status = {'label': 'Warning - Elevated', 'class': 'warning', 'icon': 'exclamation-circle'}
+        system_status = {'label': 'Sample Alerts Present', 'class': 'warning', 'icon': 'exclamation-circle'}
     else:
-        system_status = {'label': 'Protected / Normal', 'class': 'success', 'icon': 'shield-check'}
+        system_status = {'label': 'Demo Mode - No Live Monitoring', 'class': 'warning', 'icon': 'circle-info'}
 
     # Latest traffic stats for graph
     snapshots = list(TrafficStat.objects.filter(network=network, device__isnull=True).order_by('-recorded_at')[:12])
@@ -130,19 +139,28 @@ def home_view(request):
     }
 
     latest_snap = snapshots[-1] if snapshots else None
-    active_devices_count = devices.filter(is_online=True).count()
+    idle_cutoff = timezone.now() - timedelta(minutes=5)
+    active_devices_count = sum(
+        1 for device in devices
+        if device.is_online and device.last_seen >= idle_cutoff
+    )
     rules_active = DetectionRule.objects.filter(is_enabled=True).count()
+    alert_cursor = (
+        alerts.order_by('-id').values_list('id', flat=True).first() or 0
+    )
 
     context = {
         'net_info': net_info,
         'system_status': system_status,
         'devices': devices,
-        'devices_count': devices.count(),
+        'devices_count': len(devices),
         'active_devices_count': active_devices_count,
         'unresolved_alerts_count': unresolved_alerts_count,
         'critical_alerts_count': critical_alerts_count,
         'recent_alerts': recent_alerts,
         'rules_active': rules_active,
+        'settings': user_settings,
+        'alert_cursor': alert_cursor,
         'chart_labels': json.dumps(chart_labels),
         'chart_packets_in': json.dumps(chart_packets_in),
         'chart_packets_out': json.dumps(chart_packets_out),
@@ -158,32 +176,52 @@ def devices_view(request):
     """Connected Devices Inventory"""
     seed_sample_data_if_empty()
     network = get_default_network()
-    devices = Device.objects.filter(network=network)
+    all_devices = _local_devices(network)
+    devices = all_devices
     net_info = get_system_network_info()
 
     status_filter = request.GET.get('status')
+    idle_cutoff = timezone.now() - timedelta(minutes=5)
     if status_filter == 'Online':
-        devices = devices.filter(is_online=True)
+        devices = [
+            device for device in devices
+            if device.is_online and device.last_seen >= idle_cutoff
+        ]
     elif status_filter == 'Offline':
-        devices = devices.filter(is_online=False)
+        devices = [device for device in devices if not device.is_online]
+    elif status_filter == 'Idle':
+        devices = [
+            device for device in devices
+            if device.is_online and device.last_seen < idle_cutoff
+        ]
     elif status_filter == 'Suspicious':
-        devices = devices.filter(source_events__alert__status__in=[SecurityAlert.Status.NEW, SecurityAlert.Status.ACKNOWLEDGED]).distinct()
+        devices = [device for device in devices if device.status == 'Suspicious']
 
     search_query = request.GET.get('q')
     if search_query:
-        devices = devices.filter(
-            Q(ip_address__icontains=search_query) |
-            Q(hostname__icontains=search_query) |
-            Q(mac_address__icontains=search_query)
-        )
+        query = search_query.casefold()
+        devices = [
+            device for device in devices
+            if query in device.ip_address.casefold()
+            or query in (device.hostname or '').casefold()
+            or query in device.mac_address.casefold()
+        ]
 
     context = {
         'devices': devices,
         'net_info': net_info,
-        'total_count': Device.objects.filter(network=network).count(),
-        'online_count': Device.objects.filter(network=network, is_online=True).count(),
-        'suspicious_count': Device.objects.filter(network=network, source_events__alert__status__in=[SecurityAlert.Status.NEW, SecurityAlert.Status.ACKNOWLEDGED]).distinct().count(),
-        'idle_count': 0,
+        'total_count': len(all_devices),
+        'online_count': sum(
+            1 for device in all_devices
+            if device.is_online and device.last_seen >= idle_cutoff
+        ),
+        'suspicious_count': sum(
+            1 for device in all_devices if device.status == 'Suspicious'
+        ),
+        'idle_count': sum(
+            1 for device in all_devices
+            if device.is_online and device.last_seen < idle_cutoff
+        ),
         'search_query': search_query or '',
         'status_filter': status_filter or '',
     }
@@ -328,7 +366,7 @@ def report_detail_view(request, report_id):
 
     report = generate_computed_report(network, title=title, period=period, user=request.user, report_id=report_id)
     alerts = SecurityAlert.objects.filter(network=network)[:10]
-    devices = Device.objects.filter(network=network)
+    devices = _local_devices(network)
 
     context = {
         'report': report,
@@ -360,9 +398,16 @@ def controlled_scenarios_view(request):
 
 @login_required
 def api_traffic_stream(request):
-    """Returns dynamic real-time traffic statistics for live charts and dials."""
+    """Return generated demo traffic and new alert notifications."""
     network = get_default_network()
     now = timezone.now()
+    try:
+        after_id = int(request.GET.get('after_id', 0))
+    except ValueError:
+        return JsonResponse(
+            {'status': 'error', 'message': 'after_id must be an integer.'},
+            status=400,
+        )
 
     p_in = random.randint(400, 800)
     p_out = random.randint(300, 650)
@@ -379,6 +424,10 @@ def api_traffic_stream(request):
         active_connections=random.randint(18, 42),
     )
 
+    user_settings, _ = UserSettings.objects.get_or_create(user=request.user)
+    new_alerts = SecurityAlert.objects.filter(
+        network=network, id__gt=after_id
+    ).order_by('id')[:50]
     unresolved_count = SecurityAlert.objects.filter(network=network, status__in=[SecurityAlert.Status.NEW, SecurityAlert.Status.ACKNOWLEDGED]).count()
     crit_count = SecurityAlert.objects.filter(network=network, status__in=[SecurityAlert.Status.NEW, SecurityAlert.Status.ACKNOWLEDGED], severity=Severity.CRITICAL).count()
 
@@ -391,6 +440,18 @@ def api_traffic_stream(request):
         'active_connections': new_snap.active_connections,
         'unresolved_alerts': unresolved_count,
         'critical_alerts': crit_count,
+        'data_source': 'simulated',
+        'new_alerts': [
+            {
+                'id': alert.id,
+                'title': alert.title,
+                'message': alert.message,
+                'severity': alert.severity,
+            }
+            for alert in new_alerts
+        ],
+        'sound_alerts': user_settings.sound_alerts,
+        'desktop_alerts': user_settings.desktop_alerts,
     })
 
 
@@ -411,16 +472,19 @@ def api_resolve_alert(request, alert_id):
 
 @login_required
 def api_scan_devices(request):
-    """Triggers on-demand local network ARP / IP discovery."""
-    if request.method == "POST":
-        network = get_default_network()
-        now = timezone.now()
-
-        Device.objects.filter(network=network, is_online=True).update(last_seen=now)
-
-        return JsonResponse({
-            'status': 'success',
-            'message': f'Subnet scan completed. {Device.objects.filter(network=network).count()} active hosts indexed.',
-            'devices_count': Device.objects.filter(network=network).count()
-        })
-    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
+    """Report that live discovery is not available in the demo."""
+    if request.method != "POST":
+        return JsonResponse(
+            {'status': 'error', 'message': 'Invalid request method.'},
+            status=400,
+        )
+    return JsonResponse(
+        {
+            'status': 'unavailable',
+            'message': (
+                'Live subnet discovery is not configured. The device inventory '
+                'contains sample data and was not scanned.'
+            ),
+        },
+        status=501,
+    )

@@ -9,11 +9,11 @@
 <div class="content-header">
     <div class="content-title-block">
         <h2>Network Security Dashboard</h2>
-        <p>Real-time telemetry, device inventory, and rule-based anomaly detection on subnet <code>{{ net_info.subnet }}</code></p>
+        <p>Simulated demo telemetry and rule evaluation for configured subnet <code>{{ net_info.subnet }}</code>. Live packet capture and host discovery are not configured.</p>
     </div>
     <div class="content-actions">
-        <button class="btn btn-secondary" onclick="triggerSubnetScan(this)">
-            <i class="fa-solid fa-radar"></i> Scan Subnet Now
+        <button class="btn btn-secondary" type="button" disabled title="Live subnet discovery is not configured">
+            <i class="fa-solid fa-ban"></i> Live Discovery Unavailable
         </button>
         <a href="{% url 'home:scenarios' %}" class="btn btn-primary">
             <i class="fa-solid fa-flask-vial"></i> Launch Scenario Lab
@@ -25,9 +25,9 @@
 <div class="stats-grid">
     <div class="stat-card card-cyan">
         <div class="stat-data">
-            <span class="stat-label">Active Monitored Devices</span>
+            <span class="stat-label">Recently Seen Sample Devices</span>
             <span class="stat-number">{{ active_devices_count }} <span style="font-size: 1rem; color: var(--text-muted);">/ {{ devices_count }}</span></span>
-            <span class="stat-desc"><i class="fa-solid fa-circle-check" style="color: var(--color-success);"></i> {{ devices_count }} total verified hosts</span>
+            <span class="stat-desc">{{ devices_count }} sample inventory records</span>
         </div>
         <div class="stat-icon">
             <i class="fa-solid fa-network-wired"></i>
@@ -36,9 +36,9 @@
 
     <div class="stat-card card-green">
         <div class="stat-data">
-            <span class="stat-label">Live Bandwidth Rate</span>
-            <span class="stat-number" id="liveThroughputStat">{{ latest_snap.bandwidth_kbps|default:'42.8' }} KB/s</span>
-            <span class="stat-desc"><i class="fa-solid fa-arrow-trend-up"></i> Adaptive packet sampling</span>
+            <span class="stat-label">Simulated Bandwidth Rate</span>
+            <span class="stat-number" id="liveThroughputStat">{{ latest_snap.bandwidth_kbps|default:'N/A' }} KB/s</span>
+            <span class="stat-desc"><i class="fa-solid fa-flask"></i> Generated demo values</span>
         </div>
         <div class="stat-icon">
             <i class="fa-solid fa-gauge-high"></i>
@@ -47,13 +47,13 @@
 
     <div class="stat-card card-red">
         <div class="stat-data">
-            <span class="stat-label">Active Threats Detected</span>
+            <span class="stat-label">Unresolved Sample Alerts</span>
             <span class="stat-number">{{ unresolved_alerts_count }}</span>
             <span class="stat-desc">
                 {% if critical_alerts_count > 0 %}
                 <strong style="color: var(--color-danger);"><i class="fa-solid fa-triangle-exclamation"></i> {{ critical_alerts_count }} Critical</strong>
                 {% else %}
-                <span style="color: var(--color-success);"><i class="fa-solid fa-shield-check"></i> No critical breaches</span>
+                <span style="color: var(--text-muted);"><i class="fa-solid fa-circle-info"></i> Sample alert status only</span>
                 {% endif %}
             </span>
         </div>
@@ -64,9 +64,9 @@
 
     <div class="stat-card card-indigo">
         <div class="stat-data">
-            <span class="stat-label">Rule-Based Mechanisms</span>
-            <span class="stat-number">{{ rules_active }} Active</span>
-            <span class="stat-desc"><i class="fa-solid fa-code-commit"></i> Port scan, flood, burst & port checks</span>
+            <span class="stat-label">Enabled Detection Rules</span>
+            <span class="stat-number">{{ rules_active }}</span>
+            <span class="stat-desc"><i class="fa-solid fa-code-commit"></i> Evaluated against synthetic events</span>
         </div>
         <div class="stat-icon">
             <i class="fa-solid fa-microchip"></i>
@@ -83,7 +83,7 @@
                 <i class="fa-solid fa-chart-area"></i>
                 <h3>Network Activity Over Time</h3>
             </div>
-            <span class="card-badge"><i class="fa-solid fa-bolt"></i> Live Stream</span>
+            <span class="card-badge"><i class="fa-solid fa-flask"></i> Simulated demo stream</span>
         </div>
         <div class="card-body">
             <div style="position: relative; height: 280px; width: 100%;">
@@ -99,14 +99,14 @@
                 <i class="fa-solid fa-chart-pie"></i>
                 <h3>Protocol Distribution</h3>
             </div>
-            <span class="card-badge">L4/L7 Inspection</span>
+            <span class="card-badge">Illustrative demo data</span>
         </div>
         <div class="card-body" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
             <div style="position: relative; height: 220px; width: 220px;">
                 <canvas id="protocolDonutChart"></canvas>
             </div>
             <div style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted); text-align: center;">
-                Based on continuous packet header inspection
+                Generated example distribution; no packet inspection is running.
             </div>
         </div>
     </div>
@@ -119,7 +119,7 @@
             <i class="fa-solid fa-server"></i>
             <h3>Designated Local Subnet & Gateway Environment</h3>
         </div>
-        <span class="pill pill-info"><i class="fa-solid fa-satellite-dish"></i> Active Interface</span>
+        <span class="pill pill-info"><i class="fa-solid fa-circle-info"></i> Configured subnet (not scanned)</span>
     </div>
     <div class="card-body">
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
@@ -137,7 +137,7 @@
             </div>
             <div>
                 <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Sensor Mode</span>
-                <p style="font-size: 1rem; font-weight: 700; color: var(--color-success);"><i class="fa-solid fa-shield-halved"></i> Rule-Based IDS</p>
+                <p style="font-size: 1rem; font-weight: 700; color: var(--color-warning);"><i class="fa-solid fa-flask"></i> Rule engine demo</p>
             </div>
         </div>
     </div>
@@ -164,7 +164,7 @@
                     <th>Vendor / MAC</th>
                     <th>Status</th>
                     <th>Open Ports</th>
-                    <th>Observed Packets</th>
+                    <th>Traffic Data</th>
                 </tr>
             </thead>
             <tbody>
@@ -189,11 +189,11 @@
                         {% endif %}
                     </td>
                     <td class="mono-font" style="font-size: 0.8rem;">{{ dev.open_ports|default:'None' }}</td>
-                    <td class="mono-font">{{ dev.packet_count|default:'0' }}</td>
+                    <td class="mono-font">{{ dev.packet_count|default:'Not collected' }}</td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">No devices detected yet.</td>
+                    <td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">No sample device records are available.</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -201,12 +201,12 @@
     </div>
 </div>
 
-<!-- Recent Intrusion Detection Alerts (Scope D & SMART Objective 2 & 3) -->
+<!-- Recent rule-evaluation alerts -->
 <div class="content-card">
     <div class="card-header">
         <div class="card-title-group">
             <i class="fa-solid fa-triangle-exclamation" style="color: var(--color-danger);"></i>
-            <h3>Detected Suspicious Network Activities</h3>
+            <h3>Sample Rule Alerts</h3>
         </div>
         <a href="{% url 'home:alerts' %}" class="btn btn-secondary btn-sm">
             <span>All Alerts</span> <i class="fa-solid fa-arrow-right"></i>
@@ -258,7 +258,7 @@
                 <tr>
                     <td colspan="7" style="text-align: center; padding: 2rem; color: var(--color-success);">
                         <i class="fa-solid fa-shield-check" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block;"></i>
-                        All systems normal. No suspicious intrusions detected on local network.
+                        No sample alerts are recorded. Live network activity is not being monitored.
                     </td>
                 </tr>
                 {% endfor %}
@@ -269,6 +269,9 @@
 {% endblock %}
 
 {% block extra_js %}
+<div id="dashboardRuntimeSettings" hidden
+     data-refresh-interval="{{ settings.auto_refresh_rate }}"
+     data-alert-cursor="{{ alert_cursor }}"></div>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Initialize Network Activity Trend Chart

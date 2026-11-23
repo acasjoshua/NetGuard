@@ -1,14 +1,19 @@
 # NetGuard
 
-NetGuard is a Django-based local network monitoring and rule-based intrusion detection application. It presents device and traffic information in an operations dashboard and records security alerts and event logs.
+NetGuard is a Django-based demonstration of rule-based network intrusion detection. The current application uses seeded sample inventory, generated traffic telemetry, and synthetic scenario events; it does not collect live packets, perform ARP discovery, or scan device ports.
 
 ## Features
 
-- Designated local network overview with endpoint inventory and live traffic statistics
-- Rule-based intrusion detection engine mapped to physical ERD relational schema
+- Configured subnet overview with sample endpoint inventory and simulated traffic statistics
+- Rule-based evaluation of generated events, using stored thresholds and time windows
 - Security alerts, detected events, dynamic report generation, and controlled testing scenarios
 - Operator registration, authentication, profile management, and configurable user settings
 - Seed command for sample network endpoints, telemetry, rules, and operator accounts
+
+Device role, vendor, operating system, and open-port information is shown as unknown or
+not scanned unless a future data-collection component supplies verified values. The
+"Live Discovery Unavailable" action is intentional; the app does not claim to scan a
+subnet or refresh host activity.
 
 ## Technology
 
@@ -20,6 +25,9 @@ NetGuard is a Django-based local network monitoring and rule-based intrusion det
 ## Setup
 
 Run these commands from the cloned repository root. Ensure your `.env` file contains your Supabase PostgreSQL connection string in `DATABASE_URL`.
+For deployment, set `DJANGO_ALLOWED_HOSTS` to a comma-separated list of the hostnames
+that serve the application. Debug mode is disabled by default; enable it locally only
+with `DJANGO_DEBUG=True`.
 
 ```powershell
 python -m venv .venv
@@ -63,4 +71,10 @@ python manage.py test --keepdb
 
 ## Limitations
 
-NetGuard is a passive, local-network demonstration. Its rule engine uses thresholds and signatures rather than machine learning, does not inspect encrypted payload contents, and does not block or disconnect devices. Low-level packet capture and ARP enumeration may require operating-system privileges and are outside the scope of the seeded demonstration data.
+NetGuard currently does not collect live network telemetry. Seeded device records and
+traffic snapshots are examples, dashboard stream values are generated, and scenario
+events are synthetic. Rule results validate the engine against these generated inputs
+only; they are not evidence of observed network activity. ARP discovery, packet capture,
+port scanning, OS/vendor detection, email delivery, and device blocking are not
+implemented. The network subnet is an application configuration/hostname-derived
+approximation, not a verified interface configuration.
