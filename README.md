@@ -26,8 +26,10 @@ subnet or refresh host activity.
 
 Run these commands from the cloned repository root. Ensure your `.env` file contains your Supabase PostgreSQL connection string in `DATABASE_URL`.
 For deployment, set `DJANGO_ALLOWED_HOSTS` to a comma-separated list of the hostnames
-that serve the application. Debug mode is disabled by default; enable it locally only
-with `DJANGO_DEBUG=True`.
+that serve the application. For local development with Django's `runserver`, add
+`DJANGO_DEBUG=True` to `.env` so Django serves static assets. Debug mode is disabled
+by default and should remain disabled in production, where static files must be served
+by the deployment's static-file server.
 
 ```powershell
 python -m venv .venv
