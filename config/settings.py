@@ -41,9 +41,14 @@ load_dotenv(BASE_DIR / ".env")
 SECRET_KEY = 'django-insecure-ni*dwz^c)ze04p3*rbaq_=2b0#qe*5pyjuus-=t)api!$o_i5r'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = ['*']
+DEBUG = os.environ.get("DJANGO_DEBUG", "False").lower() in {"1", "true", "yes"}
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        "DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver"
+    ).split(",")
+    if host.strip()
+]
 
 
 # Application definition
@@ -72,24 +77,9 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'config.settings.DemoAuthMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-
-class DemoAuthMiddleware:
-    def __init__(self, get_response):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        if not getattr(request, 'user', None) or not request.user.is_authenticated:
-            if request.GET.get('as_user') == 'acas' or request.COOKIES.get('demo_user') == 'acas':
-                from django.contrib.auth.models import User
-                try:
-                    request.user = User.objects.get(username='acas')
-                except Exception:
-                    pass
-        return self.get_response(request)
 
 ROOT_URLCONF = 'config.urls'
 

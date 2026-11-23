@@ -27,14 +27,14 @@ static_abs_uri = (BASE_DIR / "static").as_uri()
 
 screens = [
     ("01_Login.png", "/login/"),
-    ("02_Dashboard.png", "/?as_user=acas"),
-    ("03_ConnectedDevices.png", "/devices/?as_user=acas"),
-    ("04_SecurityAlerts.png", "/alerts/?as_user=acas"),
-    ("05_ScenarioTestingLab.png", "/scenarios/?as_user=acas"),
-    ("06_EventLogs.png", "/logs/?as_user=acas"),
-    ("07_Reports.png", "/reports/?as_user=acas"),
-    ("08_UserManagement_Profile.png", "/profile/?as_user=acas"),
-    ("09_Settings.png", "/settings/?as_user=acas"),
+    ("02_Dashboard.png", "/"),
+    ("03_ConnectedDevices.png", "/devices/"),
+    ("04_SecurityAlerts.png", "/alerts/"),
+    ("05_ScenarioTestingLab.png", "/scenarios/"),
+    ("06_EventLogs.png", "/logs/"),
+    ("07_Reports.png", "/reports/"),
+    ("08_UserManagement_Profile.png", "/profile/"),
+    ("09_Settings.png", "/settings/"),
     ("10_Register.png", "/register/"),
 ]
 
@@ -44,7 +44,16 @@ if not os.path.exists(edge_path):
 
 print(f"Using browser: {edge_path}")
 
-for filename, url in screens:
+for index, (filename, url) in enumerate(screens):
+    if index == 1 and not client.login(
+        username=os.environ.get("NETGUARD_SCREENSHOT_USERNAME", "acas"),
+        password=os.environ.get("NETGUARD_SCREENSHOT_PASSWORD", "acas123"),
+    ):
+        raise RuntimeError(
+            "Could not authenticate screenshot client. Seed the demo user or set "
+            "NETGUARD_SCREENSHOT_USERNAME and NETGUARD_SCREENSHOT_PASSWORD."
+        )
+
     res = client.get(url, follow=True)
     if res.status_code == 200:
         html = res.content.decode('utf-8', errors='ignore')
