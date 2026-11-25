@@ -11,7 +11,7 @@ def profile_view(request):
         defaults={
             'full_name': f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username,
             'role': 'Network Security Analyst',
-            'organization': 'NetGuard Security Operations',
+            'organization': 'WIDS Security Operations',
             'email_contact': request.user.email,
         }
     )
