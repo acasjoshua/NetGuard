@@ -59,11 +59,11 @@
 <!-- Search & Filter Controls -->
 <div class="content-card" style="margin-bottom: 1.5rem;">
     <div class="card-body" style="padding: 1.25rem;">
-        <form method="get" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
-            <div style="flex: 1; min-width: 240px;">
+        <form method="get" class="filter-bar filter-bar-wide">
+            <div class="filter-field">
                 <input type="text" name="q" class="form-control" placeholder="Search by IP address, hostname, or MAC address..." value="{{ search_query }}">
             </div>
-            <div style="min-width: 160px;">
+            <div class="filter-field">
                 <select name="status" class="form-control">
                     <option value="">All Statuses</option>
                     <option value="Online" {% if status_filter == 'Online' %}selected{% endif %}>Online</option>
@@ -72,14 +72,16 @@
                     <option value="Offline" {% if status_filter == 'Offline' %}selected{% endif %}>Offline</option>
                 </select>
             </div>
-            <button type="submit" class="btn btn-secondary">
-                <i class="fa-solid fa-filter"></i> Filter
-            </button>
+            <div class="filter-actions">
+                <button type="submit" class="btn btn-secondary">
+                    <i class="fa-solid fa-filter"></i> Filter
+                </button>
             {% if search_query or status_filter %}
-            <a href="{% url 'home:devices' %}" class="btn btn-secondary" title="Clear Filters">
-                <i class="fa-solid fa-rotate-left"></i> Reset
-            </a>
+                <a href="{% url 'home:devices' %}" class="btn btn-secondary" title="Clear Filters">
+                    <i class="fa-solid fa-rotate-left"></i> Reset
+                </a>
             {% endif %}
+            </div>
         </form>
     </div>
 </div>

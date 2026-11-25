@@ -20,11 +20,11 @@
 <!-- Search & Category Filters -->
 <div class="content-card" style="margin-bottom: 1.5rem;">
     <div class="card-body" style="padding: 1.25rem;">
-        <form method="get" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
-            <div style="flex: 1; min-width: 240px;">
+        <form method="get" class="filter-bar filter-bar-wide">
+            <div class="filter-field">
                 <input type="text" name="q" class="form-control" placeholder="Search logs by action, IP address, or details..." value="{{ search_query }}">
             </div>
-            <div style="min-width: 180px;">
+            <div class="filter-field">
                 <select name="category" class="form-control">
                     <option value="">All Categories</option>
                     <option value="SECURITY" {% if category_filter == 'SECURITY' %}selected{% endif %}>Security Alert</option>
@@ -33,14 +33,16 @@
                     <option value="AUTH" {% if category_filter == 'AUTH' %}selected{% endif %}>Authentication</option>
                 </select>
             </div>
-            <button type="submit" class="btn btn-secondary">
-                <i class="fa-solid fa-search"></i> Search Logs
-            </button>
+            <div class="filter-actions">
+                <button type="submit" class="btn btn-secondary">
+                    <i class="fa-solid fa-search"></i> Search
+                </button>
             {% if search_query or category_filter %}
-            <a href="{% url 'home:logs' %}" class="btn btn-secondary">
-                <i class="fa-solid fa-rotate-left"></i> Reset
-            </a>
+                <a href="{% url 'home:logs' %}" class="btn btn-secondary">
+                    <i class="fa-solid fa-rotate-left"></i> Reset
+                </a>
             {% endif %}
+            </div>
         </form>
     </div>
 </div>

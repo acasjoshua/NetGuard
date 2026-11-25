@@ -22,7 +22,7 @@
         <span class="pill pill-info">Instant Compilation</span>
     </div>
     <div class="card-body">
-        <form method="post" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; align-items: flex-end;">
+        <form method="post" class="filter-bar filter-bar-wide">
             {% csrf_token %}
             <div class="form-group" style="margin-bottom: 0;">
                 <label class="form-label">Report Title</label>
@@ -36,7 +36,7 @@
                     <option value="Full Semester Term">Full Semester Term</option>
                 </select>
             </div>
-            <div>
+            <div class="filter-actions">
                 <button type="submit" class="btn btn-primary" style="width: 100%;">
                     <i class="fa-solid fa-file-pdf"></i> Generate & View Report
                 </button>
