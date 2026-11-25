@@ -25,6 +25,10 @@ class Device(models.Model):
     is_online = models.BooleanField(default=True)
     first_seen = models.DateTimeField()
     last_seen = models.DateTimeField()
+    vendor_name = models.CharField(max_length=100, default="Unknown")
+    os_name = models.CharField(max_length=100, default="Not detected")
+    device_type_name = models.CharField(max_length=100, default="Unknown")
+    open_ports_text = models.CharField(max_length=255, default="Not scanned")
 
     class Meta:
         constraints = [
@@ -47,19 +51,19 @@ class Device(models.Model):
 
     @property
     def vendor(self):
-        return "Unknown"
+        return self.vendor_name
 
     @property
     def os_info(self):
-        return "Not detected"
+        return self.os_name
 
     @property
     def device_type(self):
-        return "Unknown"
+        return self.device_type_name
 
     @property
     def open_ports(self):
-        return "Not scanned"
+        return self.open_ports_text
 
     @property
     def packet_count(self):
