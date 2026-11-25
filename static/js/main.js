@@ -10,7 +10,37 @@ document.addEventListener('DOMContentLoaded', () => {
     initDropdowns();
     initAboutModal();
     initAutoTrafficPolling();
+    initLiveDiscoveryForms();
 });
+
+function initLiveDiscoveryForms() {
+    document.querySelectorAll('.live-discovery-form').forEach((form) => {
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const button = form.querySelector('button');
+            const originalText = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Discovering...';
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': form.querySelector('[name=csrfmiddlewaretoken]').value,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const payload = await response.json();
+                if (!response.ok) throw new Error(payload.message || 'Discovery failed');
+                window.location.reload();
+            } catch (error) {
+                window.alert(error.message);
+            } finally {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
+        });
+    });
+}
 
 /* ==========================================================================
    1. Live Digital Clock

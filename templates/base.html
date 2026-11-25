@@ -244,9 +244,9 @@
                     <section class="info-section">
                         <h3><i class="fa-solid fa-list-check"></i> SMART Objectives Achieved</h3>
                         <ul class="styled-list">
-                            <li><strong>1. Monitoring Demo:</strong> Provides a responsive interface over generated sample inventory and telemetry. Live packet capture and subnet discovery are not configured.</li>
-                            <li><strong>2. Rule-Based Detection:</strong> Evaluates generated scenario events using configured port-scan, host-scan, connection-attempt, bandwidth, and unauthorized-service rules.</li>
-                            <li><strong>3. Dashboard:</strong> Shows sample device inventory, simulated traffic statistics, an illustrative protocol breakdown, and generated activity graphs.</li>
+                            <li><strong>1. Monitoring Demo:</strong> Provides live interface counters and bounded ping/ARP/local-port discovery alongside clearly labeled sample inventory.</li>
+                            <li><strong>2. Rule-Based Detection:</strong> Evaluates live-compatible events and generated scenario events using configured port-scan, host-scan, connection-attempt, bandwidth, and unauthorized-service rules.</li>
+                            <li><strong>3. Dashboard:</strong> Shows live/subnet collection results, sample inventory, traffic snapshots, and an illustrative protocol breakdown; packet inspection is not claimed.</li>
                             <li><strong>4. User Authentication & Profile:</strong> Secure user registration, credential authentication, role-based profile management, and session logout.</li>
                             <li><strong>5. Relational Database Logging:</strong> Network events, security alerts, and system activities are persisted and queryable in a relational database.</li>
                             <li><strong>6. Controlled Scenario Evaluation:</strong> Dedicated Scenario Testing Lab allows testing controlled traffic scenarios and documents detection latency, verdicts, and limitations.</li>
@@ -256,7 +256,7 @@
                     <section class="info-section">
                         <h3><i class="fa-solid fa-triangle-exclamation"></i> Documented System Limitations</h3>
                         <ul class="styled-list limitations-list">
-                            <li>Device inventory and traffic values are sample/simulated data; the application does not currently collect live packets, query ARP, or scan ports.</li>
+                            <li>Packet payload capture and protocol inspection are not implemented; protocol and traffic charts may remain illustrative or interface-derived.</li>
                             <li>Scenario results are generated test inputs evaluated by the database-configured rule thresholds and time windows; they do not represent observed incidents.</li>
                             <li>Device vendor, operating system, role, and open ports are unknown unless a future collection component supplies them.</li>
                             <li>The application does not send network traffic, block devices, or inspect encrypted payloads.</li>

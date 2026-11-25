@@ -9,12 +9,15 @@
 <div class="content-header">
     <div class="content-title-block">
         <h2>Network Security Dashboard</h2>
-        <p>Simulated demo telemetry and rule evaluation for configured subnet <code>{{ net_info.subnet }}</code>. Live packet capture and host discovery are not configured.</p>
+        <p>Monitored subnet <code>{{ net_info.subnet }}</code>. Interface telemetry and discovery are available; packet payload inspection is not configured.</p>
     </div>
     <div class="content-actions">
-        <button class="btn btn-secondary" type="button" disabled title="Live subnet discovery is not configured">
-            <i class="fa-solid fa-ban"></i> Live Discovery Unavailable
-        </button>
+        <form class="live-discovery-form" method="post" action="{% url 'home:api_scan_devices' %}">
+            {% csrf_token %}
+            <button class="btn btn-secondary" type="submit">
+                <i class="fa-solid fa-radar"></i> Discover Local Devices
+            </button>
+        </form>
         <a href="{% url 'home:scenarios' %}" class="btn btn-primary">
             <i class="fa-solid fa-flask-vial"></i> Launch Scenario Lab
         </a>
@@ -36,9 +39,9 @@
 
     <div class="stat-card card-green">
         <div class="stat-data">
-            <span class="stat-label">Simulated Bandwidth Rate</span>
+            <span class="stat-label">{% if live_collection %}Live Bandwidth Rate{% else %}Latest Bandwidth Snapshot{% endif %}</span>
             <span class="stat-number" id="liveThroughputStat">{{ latest_snap.bandwidth_kbps|default:'N/A' }} KB/s</span>
-            <span class="stat-desc"><i class="fa-solid fa-flask"></i> Generated demo values</span>
+            <span class="stat-desc"><i class="fa-solid fa-{% if live_collection %}circle-check{% else %}flask{% endif %}"></i> {% if live_collection %}Interface counter data{% else %}No live collection run yet{% endif %}</span>
         </div>
         <div class="stat-icon">
             <i class="fa-solid fa-gauge-high"></i>
@@ -83,7 +86,7 @@
                 <i class="fa-solid fa-chart-area"></i>
                 <h3>Network Activity Over Time</h3>
             </div>
-            <span class="card-badge"><i class="fa-solid fa-flask"></i> Simulated demo stream</span>
+            <span class="card-badge"><i class="fa-solid fa-{% if live_collection %}circle-check{% else %}flask{% endif %}"></i> {% if live_collection %}Interface snapshot stream{% else %}Simulated/demo stream{% endif %}</span>
         </div>
         <div class="card-body">
             <div style="position: relative; height: 280px; width: 100%;">
@@ -287,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 labels: labels,
                 datasets: [
                     {
-                        label: 'Inbound Packets',
+                        label: 'Inbound Byte Index',
                         data: packetsIn,
                         borderColor: '#06b6d4',
                         backgroundColor: 'rgba(6, 182, 212, 0.1)',
@@ -297,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         pointRadius: 3,
                     },
                     {
-                        label: 'Outbound Packets',
+                        label: 'Outbound Byte Index',
                         data: packetsOut,
                         borderColor: '#6366f1',
                         backgroundColor: 'rgba(99, 102, 241, 0.08)',

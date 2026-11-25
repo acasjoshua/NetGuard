@@ -8,12 +8,15 @@
 <div class="content-header">
     <div class="content-title-block">
         <h2>Network Endpoint Inventory</h2>
-        <p>Sample inventory for <code>{{ net_info.subnet }}</code>. Host discovery, vendor/OS detection, and port scanning are not configured; displayed inventory data is synthetic.</p>
+        <p>Inventory for <code>{{ net_info.subnet }}</code>. Hosts are discovered by ping/ARP and common TCP ports are probed; vendor and OS fingerprinting remain unavailable.</p>
     </div>
     <div class="content-actions">
-        <button class="btn btn-primary" type="button" disabled title="Live subnet discovery is not configured">
-            <i class="fa-solid fa-ban"></i> Live Discovery Unavailable
-        </button>
+        <form class="live-discovery-form" method="post" action="{% url 'home:api_scan_devices' %}">
+            {% csrf_token %}
+            <button class="btn btn-primary" type="submit">
+                <i class="fa-solid fa-radar"></i> Discover Local Devices
+            </button>
+        </form>
     </div>
 </div>
 
