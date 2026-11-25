@@ -5,18 +5,23 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
+from django.core.paginator import Paginator
 from datetime import timedelta
-from django.db.models import Q
+from django.db.models import Q, Subquery
 
 from apps.monitoring.models import Device, TrafficStat
 from apps.detection.models import DetectionRule, SecurityAlert, DetectedEvent, Severity
 from apps.user_settings.models import UserSettings
+from apps.networks.models import Network, UserNetwork
+from apps.home.models import SecurityReport
 from .ids_engine import (
     seed_sample_data_if_empty,
     get_system_network_info,
     get_default_network,
     is_in_network_subnet,
     run_controlled_scenario,
+    collect_live_network_snapshot,
+    collect_live_traffic_sample,
 )
 
 def _local_devices(network):
@@ -25,6 +30,31 @@ def _local_devices(network):
         for device in Device.objects.filter(network=network)
         if is_in_network_subnet(network, device.ip_address)
     ]
+
+def _get_user_network(request):
+    """Resolve one network that the authenticated user is authorized to access."""
+    network_id = request.GET.get('network') or request.session.get('active_network_id')
+    link = None
+    if network_id:
+        link = request.user.network_links.select_related('network').filter(
+            network_id=network_id
+        ).first()
+
+    if link is None:
+        link = request.user.network_links.select_related('network').order_by(
+            '-role', 'network__name'
+        ).first()
+
+    if link is None:
+        network = get_default_network()
+        link = UserNetwork.objects.create(
+            user=request.user,
+            network=network,
+            role=UserNetwork.Role.OWNER,
+        )
+
+    request.session['active_network_id'] = link.network_id
+    return link.network
 
 class ComputedReport:
     """In-memory computed security report (no legacy SecurityReport table needed)."""
@@ -102,7 +132,7 @@ def generate_computed_report(network, title="Local Subnet Intrusion Assessment",
 def home_view(request):
     """Network Dashboard"""
     seed_sample_data_if_empty()
-    network = get_default_network()
+    network = _get_user_network(request)
     net_info = get_system_network_info()
     user_settings, _ = UserSettings.objects.get_or_create(user=request.user)
 
@@ -152,6 +182,7 @@ def home_view(request):
     context = {
         'net_info': net_info,
         'system_status': system_status,
+        'live_collection': network.connection_status == network.ConnectionStatus.CONNECTED,
         'devices': devices,
         'devices_count': len(devices),
         'active_devices_count': active_devices_count,
@@ -175,13 +206,24 @@ def home_view(request):
 def devices_view(request):
     """Connected Devices Inventory"""
     seed_sample_data_if_empty()
-    network = get_default_network()
+    network = _get_user_network(request)
     all_devices = _local_devices(network)
     devices = all_devices
     net_info = get_system_network_info()
 
     status_filter = request.GET.get('status')
     idle_cutoff = timezone.now() - timedelta(minutes=5)
+
+    open_alert_sources = DetectedEvent.objects.filter(
+        network=network,
+        alert__status__in=['NEW', 'ACKNOWLEDGED'],
+    ).values('source_device_id').order_by()
+    suspicious_qs = Device.objects.filter(
+        network=network,
+        id__in=Subquery(open_alert_sources),
+    ).order_by('ip_address')
+    suspicious_ids = set(suspicious_qs.values_list('id', flat=True))
+
     if status_filter == 'Online':
         devices = [
             device for device in devices
@@ -195,7 +237,7 @@ def devices_view(request):
             if device.is_online and device.last_seen < idle_cutoff
         ]
     elif status_filter == 'Suspicious':
-        devices = [device for device in devices if device.status == 'Suspicious']
+        devices = [device for device in devices if device.id in suspicious_ids]
 
     search_query = request.GET.get('q')
     if search_query:
@@ -216,7 +258,7 @@ def devices_view(request):
             if device.is_online and device.last_seen >= idle_cutoff
         ),
         'suspicious_count': sum(
-            1 for device in all_devices if device.status == 'Suspicious'
+            1 for device in all_devices if device.id in suspicious_ids
         ),
         'idle_count': sum(
             1 for device in all_devices
@@ -232,7 +274,7 @@ def devices_view(request):
 def alerts_view(request):
     """Security Monitoring & Intrusion Detection Alerts"""
     seed_sample_data_if_empty()
-    network = get_default_network()
+    network = _get_user_network(request)
     alerts = SecurityAlert.objects.filter(network=network)
 
     severity_filter = request.GET.get('severity')
@@ -247,8 +289,12 @@ def alerts_view(request):
 
     rules = DetectionRule.objects.all()
 
+    paginator = Paginator(alerts, 25)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
     context = {
-        'alerts': alerts,
+        'alerts': page_obj.object_list,
+        'page_obj': page_obj,
         'rules': rules,
         'total_alerts': SecurityAlert.objects.filter(network=network).count(),
         'critical_count': SecurityAlert.objects.filter(network=network, severity=Severity.CRITICAL, status__in=[SecurityAlert.Status.NEW, SecurityAlert.Status.ACKNOWLEDGED]).count(),
@@ -277,7 +323,7 @@ class LogItemAdapter:
 def logs_view(request):
     """Event Logs & Activity History backed by DetectedEvent."""
     seed_sample_data_if_empty()
-    network = get_default_network()
+    network = _get_user_network(request)
 
     events_qs = DetectedEvent.objects.filter(network=network).select_related('rule', 'source_device', 'target_device', 'alert').order_by('-detected_at')
 
@@ -319,8 +365,12 @@ def logs_view(request):
             ])
         return response
 
+    paginator = Paginator(log_items, 50)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
     context = {
-        'logs': log_items[:100],
+        'logs': page_obj.object_list,
+        'page_obj': page_obj,
         'total_logs': len(log_items),
         'category_filter': category_filter or '',
         'search_query': search_query or '',
@@ -332,22 +382,39 @@ def logs_view(request):
 def reports_view(request):
     """Report Generation & Export (Computed on-the-fly from queries, no table)"""
     seed_sample_data_if_empty()
-    network = get_default_network()
+    network = _get_user_network(request)
 
     if request.method == "POST":
         title = request.POST.get('title', 'Weekly Network Security Assessment')
         period = request.POST.get('period', 'Last 24 Hours')
         rep = generate_computed_report(network, title=title, period=period, user=request.user)
-        # Store in session for detail view
+        stored = SecurityReport.objects.create(
+            network=network,
+            generated_by=request.user,
+            title=rep.title,
+            time_period=rep.time_period,
+            executive_summary=rep.executive_summary,
+            findings=rep.findings,
+            recommendations=rep.recommendations,
+            total_events=rep.total_events,
+            critical_count=rep.critical_count,
+            high_count=rep.high_count,
+            medium_count=rep.medium_count,
+            low_count=rep.low_count,
+            monitored_devices=rep.monitored_devices,
+            network_health_score=rep.network_health_score,
+        )
         request.session['latest_report'] = {
-            'title': rep.title,
-            'period': rep.time_period,
-            'generated_at': rep.generated_at.isoformat(),
+            'title': stored.title,
+            'period': stored.time_period,
+            'generated_at': stored.generated_at.isoformat(),
         }
-        return redirect("home:report_detail", report_id=rep.id)
+        return redirect("home:report_detail", report_id=stored.id)
 
     default_report = generate_computed_report(network, user=request.user)
-    reports = [default_report]
+    reports = list(SecurityReport.objects.filter(network=network)[:20])
+    if not reports:
+        reports = [default_report]
     context = {
         'reports': reports,
         'total_reports': len(reports),
@@ -359,12 +426,40 @@ def reports_view(request):
 @login_required
 def report_detail_view(request, report_id):
     """Detailed view of a generated security report (computed from queries)."""
-    network = get_default_network()
-    saved = request.session.get('latest_report', {})
-    title = saved.get('title', 'Local Subnet Intrusion Assessment')
-    period = saved.get('period', 'Last 24 Hours')
-
-    report = generate_computed_report(network, title=title, period=period, user=request.user, report_id=report_id)
+    network = _get_user_network(request)
+    stored = SecurityReport.objects.filter(
+        id=report_id,
+        network=network,
+    ).first()
+    if stored:
+        report = ComputedReport(
+            id_val=stored.id,
+            title=stored.title,
+            time_period=stored.time_period,
+            generated_by=stored.generated_by or request.user,
+            total_events=stored.total_events,
+            critical_count=stored.critical_count,
+            high_count=stored.high_count,
+            medium_count=stored.medium_count,
+            low_count=stored.low_count,
+            monitored_devices=stored.monitored_devices,
+            network_health_score=stored.network_health_score,
+            executive_summary=stored.executive_summary,
+            findings=stored.findings,
+            recommendations=stored.recommendations,
+            generated_at=stored.generated_at,
+        )
+    else:
+        saved = request.session.get('latest_report', {})
+        title = saved.get('title', 'Local Subnet Intrusion Assessment')
+        period = saved.get('period', 'Last 24 Hours')
+        report = generate_computed_report(
+            network,
+            title=title,
+            period=period,
+            user=request.user,
+            report_id=report_id,
+        )
     alerts = SecurityAlert.objects.filter(network=network)[:10]
     devices = _local_devices(network)
 
@@ -398,8 +493,8 @@ def controlled_scenarios_view(request):
 
 @login_required
 def api_traffic_stream(request):
-    """Return generated demo traffic and new alert notifications."""
-    network = get_default_network()
+    """Return live interface telemetry when available and new alert notifications."""
+    network = _get_user_network(request)
     now = timezone.now()
     try:
         after_id = int(request.GET.get('after_id', 0))
@@ -409,20 +504,19 @@ def api_traffic_stream(request):
             status=400,
         )
 
-    p_in = random.randint(400, 800)
-    p_out = random.randint(300, 650)
-    b_in = p_in * random.randint(800, 1500)
-    b_out = p_out * random.randint(600, 1200)
-    bw_bps = int(((b_in + b_out) * 8) / 5)
-
-    new_snap = TrafficStat.objects.create(
-        network=network,
-        recorded_at=now,
-        bytes_in=b_in,
-        bytes_out=b_out,
-        bandwidth_bps=bw_bps,
-        active_connections=random.randint(18, 42),
-    )
+    new_snap = collect_live_traffic_sample(network)
+    data_source = "live" if new_snap is not None else "unavailable"
+    if new_snap is None:
+        new_snap = TrafficStat.objects.filter(
+            network=network,
+            device__isnull=True,
+        ).order_by("-recorded_at").first()
+        if new_snap is None:
+            new_snap = TrafficStat.objects.create(
+                network=network,
+                recorded_at=now,
+                bandwidth_bps=0,
+            )
 
     user_settings, _ = UserSettings.objects.get_or_create(user=request.user)
     new_alerts = SecurityAlert.objects.filter(
@@ -440,7 +534,7 @@ def api_traffic_stream(request):
         'active_connections': new_snap.active_connections,
         'unresolved_alerts': unresolved_count,
         'critical_alerts': crit_count,
-        'data_source': 'simulated',
+        'data_source': data_source,
         'new_alerts': [
             {
                 'id': alert.id,
@@ -459,7 +553,7 @@ def api_traffic_stream(request):
 def api_resolve_alert(request, alert_id):
     """Marks a security alert as resolved."""
     if request.method == "POST":
-        network = get_default_network()
+        network = _get_user_network(request)
         alert = get_object_or_404(SecurityAlert, id=alert_id, network=network)
         alert.status = SecurityAlert.Status.RESOLVED
         alert.acknowledged_at = timezone.now()
@@ -472,19 +566,33 @@ def api_resolve_alert(request, alert_id):
 
 @login_required
 def api_scan_devices(request):
-    """Report that live discovery is not available in the demo."""
+    """Discover local devices and telemetry using the host network interfaces."""
     if request.method != "POST":
         return JsonResponse(
             {'status': 'error', 'message': 'Invalid request method.'},
             status=400,
         )
-    return JsonResponse(
-        {
-            'status': 'unavailable',
-            'message': (
-                'Live subnet discovery is not configured. The device inventory '
-                'contains sample data and was not scanned.'
-            ),
-        },
-        status=501,
-    )
+    network = _get_user_network(request)
+    try:
+        snapshot = collect_live_network_snapshot(network)
+        network.connection_status = (
+            Network.ConnectionStatus.CONNECTED
+            if snapshot['live']
+            else Network.ConnectionStatus.ERROR
+        )
+        network.last_scanned_at = timezone.now()
+        network.save(update_fields=['connection_status', 'last_scanned_at'])
+        return JsonResponse({
+            'status': 'success' if snapshot['live'] else 'partial',
+            'message': snapshot['message'],
+            'devices_discovered': snapshot['devices_discovered'],
+            'data_source': 'live' if snapshot['live'] else 'unavailable',
+        })
+    except Exception as exc:
+        network.connection_status = Network.ConnectionStatus.ERROR
+        network.save(update_fields=['connection_status'])
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Live collection failed: {exc}',
+            'data_source': 'unavailable',
+        }, status=503)

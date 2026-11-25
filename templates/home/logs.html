@@ -99,4 +99,17 @@
         </table>
     </div>
 </div>
+{% if page_obj.has_other_pages %}
+<div class="content-card" style="margin-top: 1rem; padding: 1rem;">
+    <div style="display:flex; justify-content:center; gap:.5rem;">
+        {% if page_obj.has_previous %}
+        <a class="btn btn-secondary" href="?page={{ page_obj.previous_page_number }}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}">Previous</a>
+        {% endif %}
+        <span class="btn btn-secondary">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a class="btn btn-secondary" href="?page={{ page_obj.next_page_number }}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}">Next</a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
 {% endblock %}

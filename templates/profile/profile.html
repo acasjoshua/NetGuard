@@ -20,6 +20,14 @@
     </div>
 </div>
 {% endif %}
+{% if error_msg %}
+<div class="flash-messages">
+    <div class="flash-banner danger">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>{{ error_msg }}</span>
+    </div>
+</div>
+{% endif %}
 
 <div class="dashboard-grid-2">
     <!-- Profile Edit Form -->

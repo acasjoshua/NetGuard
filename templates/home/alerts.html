@@ -139,4 +139,17 @@
         </table>
     </div>
 </div>
+{% if page_obj.has_other_pages %}
+<div class="content-card" style="margin-top: 1rem; padding: 1rem;">
+    <div style="display:flex; justify-content:center; gap:.5rem;">
+        {% if page_obj.has_previous %}
+        <a class="btn btn-secondary" href="?page={{ page_obj.previous_page_number }}{% if severity_filter %}&severity={{ severity_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Previous</a>
+        {% endif %}
+        <span class="btn btn-secondary">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a class="btn btn-secondary" href="?page={{ page_obj.next_page_number }}{% if severity_filter %}&severity={{ severity_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Next</a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
 {% endblock %}

@@ -2,6 +2,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from .models import Profile
+from django.contrib.auth.models import User
 
 @login_required
 def profile_view(request):
@@ -17,8 +18,17 @@ def profile_view(request):
 
     success_msg = None
     if request.method == "POST":
+        email_contact = request.POST.get("email_contact", "").strip()
+        if email_contact and User.objects.filter(email__iexact=email_contact).exclude(pk=request.user.pk).exists():
+            context = {
+                "profile": profile,
+                "success_msg": None,
+                "error_msg": "That email address is already in use.",
+            }
+            return render(request, "profile/profile.html", context)
+
         profile.full_name = request.POST.get("full_name", "").strip()
-        profile.email_contact = request.POST.get("email_contact", "").strip()
+        profile.email_contact = email_contact
         profile.organization = request.POST.get("organization", "").strip()
         profile.role = request.POST.get("role", "").strip()
         profile.bio = request.POST.get("bio", "").strip()

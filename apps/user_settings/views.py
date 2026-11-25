@@ -30,6 +30,7 @@ def settings_view(request):
             error_msg = "Choose a valid refresh interval and detection sensitivity."
         else:
             settings_obj.dark_mode = "dark_mode" in request.POST
+            settings_obj.email_notifications = "email_notifications" in request.POST
             settings_obj.sound_alerts = "sound_alerts" in request.POST
             settings_obj.desktop_alerts = "desktop_alerts" in request.POST
             settings_obj.sensitivity = sensitivity
