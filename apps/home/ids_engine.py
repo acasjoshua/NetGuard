@@ -82,7 +82,7 @@ def get_default_network():
     network = Network.objects.first()
     if not network:
         network = Network.objects.create(
-            name="NetGuard Operations Network",
+            name="WIDS Operations Network",
             subnet_cidr=net_info['subnet'],
             gateway_ip=net_info['gateway'],
             area="Security Operations Lab",
