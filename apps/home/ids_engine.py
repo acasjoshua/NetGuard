@@ -1,7 +1,15 @@
 import ipaddress
+import os
 import random
 import socket
 import time
+import subprocess
+import re
+from concurrent.futures import ThreadPoolExecutor
+try:
+    import psutil
+except ImportError:
+    psutil = None
 from datetime import timedelta
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -24,28 +32,48 @@ RULE_CODE_MAP = {
 }
 
 def get_system_network_info():
-    """Obtain local host network telemetry using standard socket library."""
+    """Obtain verified local interface information when psutil is available."""
     hostname = socket.gethostname()
-    try:
-        local_ip = socket.gethostbyname(hostname)
-    except Exception:
-        local_ip = "127.0.0.1"
+    local_ip = "127.0.0.1"
+    subnet = "192.168.1.0/24"
+    gateway = "192.168.1.1"
+    interface_name = "Unknown"
 
-    # Derive local subnet/gateway approximation
-    ip_parts = local_ip.split('.')
-    if len(ip_parts) == 4 and ip_parts[0] != '127':
-        subnet = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.0/24"
-        gateway = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.1"
-    else:
-        subnet = "192.168.1.0/24"
-        gateway = "192.168.1.1"
+    if psutil:
+        for name, addresses in psutil.net_if_addrs().items():
+            for address in addresses:
+                if address.family not in (socket.AF_INET,):
+                    continue
+                if address.address.startswith("127."):
+                    continue
+                local_ip = address.address
+                interface_name = name
+                if address.netmask:
+                    try:
+                        subnet = str(ipaddress.ip_network(
+                            f"{address.address}/{address.netmask}", strict=False
+                        ))
+                    except ValueError:
+                        pass
+                ip_parts = address.address.split(".")
+                if len(ip_parts) == 4:
+                    gateway = ".".join(ip_parts[:3] + ["1"])
+                break
+            if local_ip != "127.0.0.1":
+                break
+
+    if local_ip == "127.0.0.1":
+        try:
+            local_ip = socket.gethostbyname(hostname)
+        except socket.gaierror:
+            pass
 
     return {
         'hostname': hostname,
         'local_ip': local_ip,
         'subnet': subnet,
         'gateway': gateway,
-        'interface': 'Not configured (demo mode)',
+        'interface': interface_name,
     }
 
 def get_default_network():
@@ -125,6 +153,218 @@ def is_in_network_subnet(network, ip_address):
         )
     except (TypeError, ValueError):
         return False
+
+def _ping_host(ip_address):
+    command = (
+        ["ping", "-n", "1", "-w", "250", ip_address]
+        if os.name == "nt"
+        else ["ping", "-c", "1", "-W", "1", ip_address]
+    )
+    try:
+        result = subprocess.run(
+            command,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=2,
+            check=False,
+        )
+        return ip_address if result.returncode == 0 else None
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+def _probe_common_ports(ip_address):
+    open_ports = []
+    for port in (22, 53, 80, 443, 445, 3389, 8080):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(0.12)
+                if sock.connect_ex((ip_address, port)) == 0:
+                    open_ports.append(port)
+        except OSError:
+            continue
+    return open_ports
+
+def collect_live_network_snapshot(network):
+    """Collect bounded live inventory and interface counters from this host."""
+    if psutil is None:
+        return {
+            "live": False,
+            "devices_discovered": 0,
+            "message": "psutil is not installed; live collection is unavailable.",
+        }
+
+    net_info = get_system_network_info()
+    network.interface_name = net_info["interface"]
+    network.gateway_ip = net_info["gateway"] if is_in_network_subnet(
+        network, net_info["gateway"]
+    ) else network.gateway_ip
+    network.save(update_fields=["interface_name", "gateway_ip"])
+
+    subnet = ipaddress.ip_network(network.subnet_cidr, strict=False)
+    candidate_hosts = list(subnet.hosts())[:254]
+    discovered_ips = set()
+    with ThreadPoolExecutor(max_workers=32) as executor:
+        ping_results = executor.map(
+            _ping_host,
+            [str(address) for address in candidate_hosts],
+        )
+        discovered_ips.update(ip for ip in ping_results if ip)
+
+    try:
+        arp_output = subprocess.run(
+            ["arp", "-a"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        ).stdout
+        for ip_address, mac_address in re.findall(
+            r"(?P<ip>\b\d{1,3}(?:\.\d{1,3}){3}\b)\s+"
+            r"(?P<mac>(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2})",
+            arp_output,
+        ):
+            if is_in_network_subnet(network, ip_address):
+                discovered_ips.add(ip_address)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+    local_ip = net_info["local_ip"]
+    if is_in_network_subnet(network, local_ip):
+        discovered_ips.add(local_ip)
+    if str(network.gateway_ip) and is_in_network_subnet(
+        network, str(network.gateway_ip)
+    ):
+        discovered_ips.add(str(network.gateway_ip))
+
+    for ip_address in sorted(discovered_ips, key=lambda value: ipaddress.ip_address(value)):
+        mac_address = None
+        try:
+            arp_output = subprocess.run(
+                ["arp", "-a", ip_address],
+                capture_output=True,
+                text=True,
+                timeout=2,
+                check=False,
+            ).stdout
+            mac_match = re.search(
+                r"(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}",
+                arp_output,
+            )
+            if mac_match:
+                mac_address = mac_match.group(0).replace("-", ":").upper()
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+
+        if not mac_address:
+            mac_address = f"02:00:00:{ipaddress.ip_address(ip_address).packed[-3]:02X}:{ipaddress.ip_address(ip_address).packed[-2]:02X}:{ipaddress.ip_address(ip_address).packed[-1]:02X}"
+
+        try:
+            hostname = socket.gethostbyaddr(ip_address)[0]
+        except (socket.herror, socket.gaierror, socket.timeout):
+            hostname = None
+
+        device = get_or_create_device(
+            network,
+            ip_address,
+            mac_address=mac_address,
+            hostname=hostname,
+            is_online=True,
+        )
+        open_ports = _probe_common_ports(ip_address)
+        device.open_ports_text = (
+            ", ".join(str(port) for port in open_ports)
+            if open_ports
+            else "No common ports detected"
+        )
+        device.save(update_fields=["open_ports_text", "last_seen", "is_online"])
+
+    counters = psutil.net_io_counters(pernic=True)
+    counter = counters.get(net_info["interface"])
+    if counter is None:
+        counter = psutil.net_io_counters()
+
+    previous = TrafficStat.objects.filter(
+        network=network,
+        device__isnull=True,
+    ).order_by("-recorded_at").first()
+    elapsed_seconds = 5.0
+    if previous:
+        elapsed_seconds = max(
+            1.0,
+            (timezone.now() - previous.recorded_at).total_seconds(),
+        )
+    bandwidth_bps = 0
+    if previous:
+        bandwidth_bps = int(
+            max(0, (counter.bytes_sent + counter.bytes_recv)
+                - (previous.bytes_out + previous.bytes_in)) * 8
+            / elapsed_seconds
+        )
+
+    try:
+        active_connections = len(psutil.net_connections(kind="inet"))
+    except (psutil.AccessDenied, psutil.NoSuchProcess):
+        active_connections = 0
+    TrafficStat.objects.create(
+        network=network,
+        device=None,
+        recorded_at=timezone.now(),
+        bytes_in=counter.bytes_recv,
+        bytes_out=counter.bytes_sent,
+        bandwidth_bps=bandwidth_bps,
+        active_connections=active_connections,
+    )
+    return {
+        "live": bool(discovered_ips),
+        "devices_discovered": len(discovered_ips),
+        "message": (
+            f"Live collection found {len(discovered_ips)} local host(s). "
+            "ARP/ping and interface counters were collected from the configured host."
+        ),
+    }
+
+def collect_live_traffic_sample(network):
+    """Read live interface counters without generating synthetic traffic values."""
+    if psutil is None:
+        return None
+    net_info = get_system_network_info()
+    counters = psutil.net_io_counters(pernic=True)
+    counter = counters.get(net_info["interface"])
+    if counter is None:
+        counter = psutil.net_io_counters()
+
+    previous = TrafficStat.objects.filter(
+        network=network,
+        device__isnull=True,
+    ).order_by("-recorded_at").first()
+    elapsed_seconds = 5.0
+    bandwidth_bps = 0
+    if previous:
+        elapsed_seconds = max(
+            1.0,
+            (timezone.now() - previous.recorded_at).total_seconds(),
+        )
+        bandwidth_bps = int(
+            max(0, (counter.bytes_sent + counter.bytes_recv)
+                - (previous.bytes_out + previous.bytes_in)) * 8
+            / elapsed_seconds
+        )
+
+    now = timezone.now()
+    try:
+        active_connections = len(psutil.net_connections(kind="inet"))
+    except (psutil.AccessDenied, psutil.NoSuchProcess):
+        active_connections = 0
+    snapshot = TrafficStat.objects.create(
+        network=network,
+        device=None,
+        recorded_at=now,
+        bytes_in=counter.bytes_recv,
+        bytes_out=counter.bytes_sent,
+        bandwidth_bps=bandwidth_bps,
+        active_connections=active_connections,
+    )
+    return snapshot
 
 def _sample_subnet_ips(network, count, exclude=()):
     if count <= 0:
@@ -324,6 +564,30 @@ def seed_sample_data_if_empty():
                 detected_at=now - timedelta(hours=3),
             )
 
+def _create_or_update_active_alert(network, severity, title, message, cooldown_seconds=600):
+    cutoff = timezone.now() - timedelta(seconds=cooldown_seconds)
+    existing = SecurityAlert.objects.filter(
+        network=network,
+        title=title,
+        status__in=[
+            SecurityAlert.Status.NEW,
+            SecurityAlert.Status.ACKNOWLEDGED,
+        ],
+        created_at__gte=cutoff,
+    ).first()
+    if existing:
+        existing.message = message
+        existing.severity = severity
+        existing.save(update_fields=["message", "severity"])
+        return existing
+    return SecurityAlert.objects.create(
+        network=network,
+        severity=severity,
+        status=SecurityAlert.Status.NEW,
+        title=title,
+        message=message,
+    )
+
 def execute_rule_based_analysis(packet_events):
     """
     Evaluate one captured or synthetic batch against enabled database rules.
@@ -376,12 +640,11 @@ def execute_rule_based_analysis(packet_events):
         }
         if rule_port and port_events and len(distinct_ports) >= rule_port.threshold:
             ports_str = ", ".join(str(p) for p in sorted(list(distinct_ports))[:20])
-            alert = SecurityAlert.objects.create(
-                network=network,
-                severity=rule_port.default_severity,
-                status=SecurityAlert.Status.NEW,
-                title=f"Port Scan Detected from {src}",
-                message=f"Synthetic events targeted {len(distinct_ports)} distinct ports within {rule_port.time_window_sec}s (Threshold: >= {rule_port.threshold}). Ports: {ports_str}.",
+            alert = _create_or_update_active_alert(
+                network,
+                rule_port.default_severity,
+                f"Port Scan Detected from {src}",
+                f"Synthetic events targeted {len(distinct_ports)} distinct ports within {rule_port.time_window_sec}s (Threshold: >= {rule_port.threshold}). Ports: {ports_str}.",
             )
             DetectedEvent.objects.create(
                 network=network,
@@ -420,12 +683,11 @@ def execute_rule_based_analysis(packet_events):
         }
         if rule_host and matching_host_scans:
             scanned_hosts = set().union(*matching_host_scans.values())
-            alert = SecurityAlert.objects.create(
-                network=network,
-                severity=rule_host.default_severity,
-                status=SecurityAlert.Status.NEW,
-                title=f"Host Scan Detected from {src}",
-                message=(
+            alert = _create_or_update_active_alert(
+                network,
+                rule_host.default_severity,
+                f"Host Scan Detected from {src}",
+                (
                     f"Host probed {len(scanned_hosts)} distinct local destinations "
                     f"within {rule_host.time_window_sec}s on a shared port."
                 ),
@@ -459,12 +721,11 @@ def execute_rule_based_analysis(packet_events):
             for event in connection_events
         )
         if rule_conn and connection_events and connection_count >= rule_conn.threshold:
-            alert = SecurityAlert.objects.create(
-                network=network,
-                severity=rule_conn.default_severity,
-                status=SecurityAlert.Status.NEW,
-                title=f"Excessive Connection Rate from {src}",
-                message=(
+            alert = _create_or_update_active_alert(
+                network,
+                rule_conn.default_severity,
+                f"Excessive Connection Rate from {src}",
+                (
                     f"High connection volume: {connection_count} attempts within "
                     f"{rule_conn.time_window_sec}s (Threshold: >= {rule_conn.threshold})."
                 ),
@@ -503,12 +764,11 @@ def execute_rule_based_analysis(packet_events):
             (bandwidth_packets * 1500 * 8) / bandwidth_span
         )
         if rule_dos and bandwidth_events and bandwidth_bps >= rule_dos.threshold:
-            alert = SecurityAlert.objects.create(
-                network=network,
-                severity=rule_dos.default_severity,
-                status=SecurityAlert.Status.NEW,
-                title=f"Abnormal Traffic Spike from {src}",
-                message=(
+            alert = _create_or_update_active_alert(
+                network,
+                rule_dos.default_severity,
+                f"Abnormal Traffic Spike from {src}",
+                (
                     f"Throughput reached {bandwidth_bps} bps within "
                     f"{rule_dos.time_window_sec}s (Threshold: >= {rule_dos.threshold} bps)."
                 ),
@@ -540,12 +800,11 @@ def execute_rule_based_analysis(packet_events):
         }
         if rule_unauth and unauth_events and len(unauth_ports) >= rule_unauth.threshold:
             port_names = [f"Port {p}" for p in unauth_ports]
-            alert = SecurityAlert.objects.create(
-                network=network,
-                severity=rule_unauth.default_severity,
-                status=SecurityAlert.Status.NEW,
-                title=f"Unauthorized Network Service / Port Access from {src}",
-                message=f"Inbound probe targeting restricted or unauthorized ports: {', '.join(port_names)}.",
+            alert = _create_or_update_active_alert(
+                network,
+                rule_unauth.default_severity,
+                f"Unauthorized Network Service / Port Access from {src}",
+                f"Inbound probe targeting restricted or unauthorized ports: {', '.join(port_names)}.",
             )
             for p in unauth_ports:
                 DetectedEvent.objects.create(
