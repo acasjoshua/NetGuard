@@ -47,6 +47,7 @@ function initLiveDiscoveryForms() {
    ========================================================================== */
 function initLiveClock() {
     const clockEl = document.getElementById('clockTime');
+    const zoneEl = document.getElementById('clockZone');
     if (!clockEl) return;
 
     function updateTime() {
@@ -55,6 +56,10 @@ function initLiveClock() {
         const minutes = String(now.getMinutes()).padStart(2, '0');
         const seconds = String(now.getSeconds()).padStart(2, '0');
         clockEl.textContent = `${hours}:${minutes}:${seconds}`;
+        if (zoneEl) {
+            const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            zoneEl.textContent = zone ? zone.replace('_', ' ') : '';
+        }
     }
 
     updateTime();
