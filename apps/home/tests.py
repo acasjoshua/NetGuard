@@ -16,7 +16,7 @@ from .ids_engine import (
     get_default_network,
 )
 
-class NetGuardIntrusionDetectionTests(TestCase):
+class WIDSIntrusionDetectionTests(TestCase):
     def setUp(self):
         # Create test analyst user
         self.user = User.objects.create_user(

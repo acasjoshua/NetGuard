@@ -1,6 +1,6 @@
-# NetGuard
+# WIDS
 
-NetGuard is a Django-based rule-driven network-monitoring demonstration. It includes live interface counters, bounded ping/ARP discovery, and common TCP-port checks, while seeded inventory and synthetic scenario events remain available for evaluation.
+WIDS (Wandering Intrusion Detection System) is a Django-based rule-driven network-monitoring demonstration. It includes live interface counters, bounded ping/ARP discovery, and common TCP-port checks, while seeded inventory and synthetic scenario events remain available for evaluation.
 
 ## Features
 
@@ -72,7 +72,7 @@ python manage.py test --keepdb
 
 ## Limitations
 
-NetGuard collects host-interface counters and bounded local-subnet inventory when permitted.
+WIDS collects host-interface counters and bounded local-subnet inventory when permitted.
 Seeded device records and synthetic scenario events remain examples, not proof of live
 incidents. Full packet capture, payload inspection, OS/vendor fingerprinting, protocol
 distribution, email delivery, and device blocking are not implemented.
