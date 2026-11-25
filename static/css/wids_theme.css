@@ -1,0 +1,332 @@
+/*
+ * WIDS visual system
+ * Restrained, blue-led data-console styling inspired by database tooling.
+ */
+:root {
+    --sidebar-width: 232px;
+    --header-height: 56px;
+    --radius-sm: 5px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 12px;
+    --bg-main: #0f1419;
+    --bg-secondary: #171d24;
+    --bg-card: #171d24;
+    --bg-card-hover: #1d252e;
+    --bg-input: #11171d;
+    --border-color: #29333d;
+    --border-highlight: #4c6c91;
+    --text-primary: #edf2f7;
+    --text-secondary: #a1acb8;
+    --text-muted: #7d8894;
+    --brand-cyan: #75b5ff;
+    --brand-cyan-glow: rgba(117, 181, 255, 0.12);
+    --brand-indigo: #3b82f6;
+    --brand-indigo-glow: rgba(59, 130, 246, 0.14);
+    --shadow-card: none;
+    --shadow-glow-cyan: none;
+    --shadow-glow-danger: none;
+}
+
+[data-theme="light"] {
+    --bg-main: #f7f8fa;
+    --bg-secondary: #ffffff;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f3f5f7;
+    --bg-input: #ffffff;
+    --border-color: #dde3e8;
+    --border-highlight: #8bb7ea;
+    --text-primary: #1a1f24;
+    --text-secondary: #59636d;
+    --text-muted: #7d8791;
+    --brand-cyan: #2563eb;
+    --brand-cyan-glow: rgba(37, 99, 235, 0.10);
+}
+
+body {
+    font-family: Inter, "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.app-sidebar {
+    background: var(--bg-secondary);
+}
+
+.sidebar-header {
+    height: var(--header-height);
+    padding: 0 16px;
+}
+
+.logo-shield {
+    width: 32px;
+    height: 32px;
+    border-radius: 7px;
+    background: #2f81f7;
+    box-shadow: none;
+}
+
+.brand-title {
+    font-size: 16px;
+    letter-spacing: -0.02em;
+}
+
+.brand-title span {
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.brand-tag {
+    margin-top: 1px;
+    font-size: 10px;
+}
+
+.subnet-banner {
+    margin: 10px 12px 6px;
+    padding: 9px 10px;
+    border-radius: 7px;
+    background: var(--bg-main);
+}
+
+.sidebar-nav {
+    padding: 6px 8px 16px;
+}
+
+.nav-section-title {
+    padding: 12px 8px 5px;
+    font-size: 10px;
+}
+
+.nav-link {
+    min-height: 38px;
+    margin: 1px 0;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    font-size: 13px;
+}
+
+.nav-link i {
+    width: 18px;
+    font-size: 13px;
+}
+
+.nav-link.active {
+    background: rgba(47, 129, 247, 0.12);
+    border-color: rgba(47, 129, 247, 0.24);
+    color: #8fc3ff;
+}
+
+.sidebar-footer {
+    padding: 10px 12px;
+}
+
+.user-profile-widget {
+    padding: 8px;
+}
+
+.avatar-circle,
+.avatar-sm {
+    border-radius: 50%;
+}
+
+.app-header {
+    height: var(--header-height);
+    padding: 0 20px;
+    backdrop-filter: none;
+}
+
+.header-title {
+    font-size: 14px;
+}
+
+.header-subtitle {
+    color: var(--text-muted);
+    font-size: 10px;
+}
+
+.header-action-btn,
+.user-menu-btn,
+.status-indicator-pill,
+.live-clock {
+    border-radius: 7px;
+}
+
+.status-indicator-pill {
+    background: rgba(47, 129, 247, 0.08);
+    border-color: rgba(47, 129, 247, 0.22);
+    color: #75b5ff;
+}
+
+.status-pulse-dot,
+.status-dot-pulse {
+    background: #75b5ff;
+    box-shadow: none;
+    animation: none;
+}
+
+.page-content {
+    max-width: 1440px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 24px 28px 32px;
+}
+
+.content-header {
+    margin-bottom: 18px;
+}
+
+.content-title-block h2 {
+    font-size: 20px;
+    letter-spacing: -0.025em;
+}
+
+.content-title-block p {
+    margin-top: 3px;
+    font-size: 13px;
+}
+
+.stats-grid,
+.dashboard-grid-2,
+.dashboard-grid-equal {
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.stat-card,
+.content-card,
+.modal-card {
+    border-radius: 9px;
+    box-shadow: none;
+}
+
+.stat-card {
+    min-height: 112px;
+    padding: 16px;
+}
+
+.stat-card::before {
+    width: 2px;
+}
+
+.stat-card:hover {
+    transform: none;
+    background: var(--bg-card-hover);
+}
+
+.stat-number {
+    font-size: 24px;
+    font-family: Inter, "Segoe UI", sans-serif;
+    letter-spacing: -0.03em;
+}
+
+.stat-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 7px;
+    font-size: 16px;
+}
+
+.card-header {
+    min-height: 48px;
+    padding: 12px 16px;
+}
+
+.card-body {
+    padding: 16px;
+}
+
+.card-title-group h3 {
+    font-size: 13px;
+}
+
+.card-badge,
+.pill {
+    border-radius: 999px;
+}
+
+.btn {
+    min-height: 34px;
+    padding: 7px 11px;
+    border-radius: 7px;
+    font-size: 12px;
+}
+
+.btn-primary {
+    background: #2f81f7;
+    box-shadow: none;
+}
+
+.btn-primary:hover {
+    background: #2567d5;
+    box-shadow: none;
+    transform: none;
+}
+
+.btn-secondary {
+    background: transparent;
+}
+
+.form-control,
+.form-label,
+.table-responsive {
+    font-size: 13px;
+}
+
+.form-control {
+    min-height: 38px;
+    border-radius: 7px;
+}
+
+.netguard-table th {
+    height: 40px;
+    padding: 9px 14px;
+    background: var(--bg-main);
+    font-size: 10px;
+}
+
+.netguard-table td {
+    padding: 10px 14px;
+    border-bottom-color: var(--border-color);
+}
+
+.app-footer {
+    height: 42px;
+    padding: 0 20px;
+}
+
+.auth-wrapper {
+    background:
+        linear-gradient(rgba(117, 181, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(117, 181, 255, 0.025) 1px, transparent 1px),
+        var(--bg-main);
+    background-size: 32px 32px;
+}
+
+.auth-card {
+    border-radius: 12px;
+    box-shadow: none;
+}
+
+.auth-card::before {
+    height: 2px;
+    background: #2f81f7;
+}
+
+.auth-card.register-card {
+    max-width: 520px;
+}
+
+.auth-logo-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 9px;
+    background: #2f81f7;
+    box-shadow: none;
+}
+
+.auth-title {
+    font-size: 22px;
+}
+
+.demo-credentials-box {
+    border-style: solid;
+}
