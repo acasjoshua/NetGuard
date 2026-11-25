@@ -1,19 +1,18 @@
 # NetGuard
 
-NetGuard is a Django-based demonstration of rule-based network intrusion detection. The current application uses seeded sample inventory, generated traffic telemetry, and synthetic scenario events; it does not collect live packets, perform ARP discovery, or scan device ports.
+NetGuard is a Django-based rule-driven network-monitoring demonstration. It includes live interface counters, bounded ping/ARP discovery, and common TCP-port checks, while seeded inventory and synthetic scenario events remain available for evaluation.
 
 ## Features
 
-- Configured subnet overview with sample endpoint inventory and simulated traffic statistics
+- Configured subnet overview with live interface discovery where supported, plus clearly labeled sample records
 - Rule-based evaluation of generated events, using stored thresholds and time windows
 - Security alerts, detected events, dynamic report generation, and controlled testing scenarios
 - Operator registration, authentication, profile management, and configurable user settings
 - Seed command for sample network endpoints, telemetry, rules, and operator accounts
 
-Device role, vendor, operating system, and open-port information is shown as unknown or
-not scanned unless a future data-collection component supplies verified values. The
-"Live Discovery Unavailable" action is intentional; the app does not claim to scan a
-subnet or refresh host activity.
+Device role, vendor, operating system, and open-port information is labeled unknown or
+not scanned unless a live collection component supplies verified values. Live discovery
+uses bounded ping/ARP and common-port checks; it is not packet payload inspection.
 
 ## Technology
 
@@ -73,10 +72,7 @@ python manage.py test --keepdb
 
 ## Limitations
 
-NetGuard currently does not collect live network telemetry. Seeded device records and
-traffic snapshots are examples, dashboard stream values are generated, and scenario
-events are synthetic. Rule results validate the engine against these generated inputs
-only; they are not evidence of observed network activity. ARP discovery, packet capture,
-port scanning, OS/vendor detection, email delivery, and device blocking are not
-implemented. The network subnet is an application configuration/hostname-derived
-approximation, not a verified interface configuration.
+NetGuard collects host-interface counters and bounded local-subnet inventory when permitted.
+Seeded device records and synthetic scenario events remain examples, not proof of live
+incidents. Full packet capture, payload inspection, OS/vendor fingerprinting, protocol
+distribution, email delivery, and device blocking are not implemented.
