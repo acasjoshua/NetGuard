@@ -1,5 +1,5 @@
 /**
- * NetGuard IDS - Main Application JavaScript
+ * WIDS - Wandering Intrusion Detection System JavaScript
  * Demo Telemetry, Theme Management & Interactivity
  */
 

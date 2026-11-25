@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}NetGuard - Local Network Monitoring & Intrusion Detection System{% endblock %}</title>
+    <title>{% block title %}WIDS - Wandering Intrusion Detection System{% endblock %}</title>
     <!-- Modern Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,6 +15,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <!-- Core Theme CSS -->
     <link rel="stylesheet" href="{% static 'css/netguard_theme.css' %}">
+    <link rel="stylesheet" href="{% static 'css/wids_theme.css' %}">
     {% block extra_css %}{% endblock %}
 </head>
 <body class="theme-dark">
@@ -27,8 +28,8 @@
                         <i class="fa-solid fa-shield-halved"></i>
                     </div>
                     <div class="brand-text">
-                        <span class="brand-title">Net<span>Guard</span></span>
-                        <span class="brand-tag">IDS v1.0 Core</span>
+                        <span class="brand-title">WIDS<span>Lab</span></span>
+                        <span class="brand-tag">Wandering IDS</span>
                     </div>
                 </a>
                 <button class="sidebar-close-btn" id="sidebarCloseBtn" aria-label="Close Sidebar">
@@ -40,7 +41,7 @@
             <div class="subnet-banner">
                 <div class="subnet-info">
                     <span class="subnet-label"><i class="fa-solid fa-circle-info"></i> Data Mode</span>
-                    <span class="subnet-value">Synthetic demo</span>
+                    <span class="subnet-value">Live / synthetic</span>
                 </div>
                 <span class="status-dot-pulse" title="Live collection is not configured"></span>
             </div>
@@ -136,7 +137,7 @@
                         <i class="fa-solid fa-bars"></i>
                     </button>
                     <div class="header-breadcrumb">
-                        <span class="header-subtitle">NetGuard IDS</span>
+                        <span class="header-subtitle">WIDS Console</span>
                         <h1 class="header-title">{% block page_title %}Dashboard{% endblock %}</h1>
                     </div>
                 </div>
@@ -144,7 +145,7 @@
                 <div class="header-center">
                     <div class="status-indicator-pill" id="headerStatusPill">
                         <span class="status-pulse-dot"></span>
-                        <span class="status-text">SIMULATED DATA MODE</span>
+                        <span class="status-text">DATA SOURCE READY</span>
                     </div>
                     <div class="live-clock" id="liveClockDisplay">
                         <i class="fa-regular fa-clock"></i> <span id="clockTime">--:--:--</span>
@@ -155,7 +156,7 @@
                     <!-- Project Info Modal Trigger -->
                     <button class="header-action-btn" id="openAboutModalBtn" title="Project Documentation & Objectives">
                         <i class="fa-solid fa-circle-info"></i>
-                        <span>About NetGuard</span>
+                        <span>About WIDS</span>
                     </button>
 
                     <!-- Theme Toggle -->
@@ -212,10 +213,10 @@
             <!-- Footer -->
             <footer class="app-footer">
                 <div class="footer-left">
-                    <strong>NetGuard</strong>: Rule-Evaluation Demo &bull; <em>“Explore generated scenarios and detection rules.”</em>
+                    <strong>WIDS</strong> &bull; Wandering Intrusion Detection System
                 </div>
                 <div class="footer-right">
-                    <span>Demo data only &bull; No live packet capture or subnet discovery</span>
+                    <span>Local monitoring console &bull; Live discovery with sample fallback</span>
                 </div>
             </footer>
         </div>
@@ -228,7 +229,7 @@
                 <div class="modal-title-group">
                     <div class="modal-icon"><i class="fa-solid fa-shield-halved"></i></div>
                     <div>
-                        <h2>NetGuard: Local Network Monitoring and Intrusion Detection System</h2>
+                        <h2>WIDS: Wandering Intrusion Detection System</h2>
                         <p class="modal-subtitle">“See Your Network. Detect the Threats.”</p>
                     </div>
                 </div>
@@ -238,7 +239,7 @@
                 <div class="modal-tab-content">
                     <section class="info-section">
                         <h3><i class="fa-solid fa-bullseye"></i> Problem Statement</h3>
-                        <p>Many users connected to local networks have limited visibility into what devices are communicating and whether unusual network activity is occurring. Existing professional network-monitoring tools can be complicated for beginners and may require specialized knowledge. This makes it difficult for students and small organizations to identify potentially suspicious activity on their networks. NetGuard provides a simpler, understandable, and actionable way to monitor local network security.</p>
+                        <p>WIDS provides students and small teams with a clear view of local network activity, stored security events, and rule-based detections. The interface is designed for practical investigation rather than raw terminal-style alert handling.</p>
                     </section>
 
                     <section class="info-section">
