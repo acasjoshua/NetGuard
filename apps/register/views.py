@@ -69,7 +69,7 @@ def register_view(request):
             full_name=full_name,
             role=role,
             email_contact=email,
-            organization="NetGuard Security Operations",
+            organization="WIDS Security Operations",
             bio="Security enthusiast and network operator."
         )
 

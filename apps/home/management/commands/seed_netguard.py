@@ -7,7 +7,7 @@ from apps.networks.models import UserNetwork
 from apps.home.ids_engine import seed_sample_data_if_empty, get_default_network
 
 class Command(BaseCommand):
-    help = 'Seed initial NetGuard users, detection rules, devices, and baseline telemetry'
+    help = 'Seed initial WIDS users, detection rules, devices, and baseline telemetry'
 
     def handle(self, *args, **options):
         network = get_default_network()
@@ -36,7 +36,7 @@ class Command(BaseCommand):
             defaults={
                 'full_name': 'System Administrator',
                 'role': 'Lead Security Architect',
-                'organization': 'NetGuard Security Team',
+                'organization': 'WIDS Security Team',
                 'bio': 'System administrator and security lead monitoring designated local network subnets.',
                 'email_contact': 'admin@netguard.local',
                 'avatar_color': '#6366f1'
@@ -83,7 +83,7 @@ class Command(BaseCommand):
             defaults={
                 'full_name': 'Security Analyst Acas',
                 'role': 'Network Security Analyst',
-                'organization': 'NetGuard Security Lab',
+                'organization': 'WIDS Security Lab',
                 'bio': 'Student researcher evaluating local network intrusion detection scenarios.',
                 'email_contact': 'acas@student.edu',
                 'avatar_color': '#06b6d4'
@@ -109,4 +109,4 @@ class Command(BaseCommand):
 
         # 3. Seed data
         seed_sample_data_if_empty()
-        self.stdout.write(self.style.SUCCESS('NetGuard sample devices, rules, snapshots, and alerts seeded successfully.'))
+        self.stdout.write(self.style.SUCCESS('WIDS sample devices, rules, snapshots, and alerts seeded successfully.'))
