@@ -3,6 +3,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from apps.user_profile.models import Profile
 from apps.user_settings.models import UserSettings
+from apps.networks.models import Network, UserNetwork
 
 def register_view(request):
     if request.user.is_authenticated:
@@ -47,6 +48,12 @@ def register_view(request):
                 "form_data": request.POST
             })
 
+        if email and User.objects.filter(email__iexact=email).exists():
+            return render(request, "register/register.html", {
+                "error": "An account is already registered with that email.",
+                "form_data": request.POST
+            })
+
         # Create user
         user = User.objects.create_user(
             username=username,
@@ -74,6 +81,14 @@ def register_view(request):
             sensitivity="MEDIUM",
             auto_refresh_rate=5
         )
+
+        network = Network.objects.first()
+        if network:
+            UserNetwork.objects.get_or_create(
+                user=user,
+                network=network,
+                defaults={"role": UserNetwork.Role.OWNER},
+            )
 
         # Redirect to login URL with a success message query parameter so form posts to /login/
         messages.success(request, "Registration successful! You may now sign in with your credentials.")
