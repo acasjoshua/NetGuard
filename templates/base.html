@@ -28,22 +28,13 @@
                         <i class="fa-solid fa-shield-halved"></i>
                     </div>
                     <div class="brand-text">
-                        <span class="brand-title">WIDS<span>Lab</span></span>
+                        <span class="brand-title">WIDS</span>
                         <span class="brand-tag">Wandering IDS</span>
                     </div>
                 </a>
                 <button class="sidebar-close-btn" id="sidebarCloseBtn" aria-label="Close Sidebar">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
-            </div>
-
-            <!-- Subnet Badge -->
-            <div class="subnet-banner">
-                <div class="subnet-info">
-                    <span class="subnet-label"><i class="fa-solid fa-circle-info"></i> Data Mode</span>
-                    <span class="subnet-value">Live / synthetic</span>
-                </div>
-                <span class="status-dot-pulse" title="Live collection is not configured"></span>
             </div>
 
             <!-- Navigation Links -->
@@ -73,7 +64,6 @@
                         <a href="{% url 'home:scenarios' %}" class="nav-link {% if request.resolver_match.url_name == 'scenarios' %}active{% endif %}">
                             <i class="fa-solid fa-flask-vial"></i>
                             <span>Scenario Testing Lab</span>
-                            <span class="nav-badge test-badge">SMART</span>
                         </a>
                     </li>
                 </ul>
@@ -142,17 +132,12 @@
                     </div>
                 </div>
 
-                <div class="header-center">
-                    <div class="status-indicator-pill" id="headerStatusPill">
-                        <span class="status-pulse-dot"></span>
-                        <span class="status-text">DATA SOURCE READY</span>
-                    </div>
-                    <div class="live-clock" id="liveClockDisplay">
-                        <i class="fa-regular fa-clock"></i> <span id="clockTime">--:--:--</span>
-                    </div>
-                </div>
-
                 <div class="header-right">
+                    <div class="live-clock" id="liveClockDisplay">
+                        <i class="fa-regular fa-clock"></i>
+                        <span id="clockTime">--:--:--</span>
+                        <span id="clockZone" class="clock-zone"></span>
+                    </div>
                     <!-- Project Info Modal Trigger -->
                     <button class="header-action-btn" id="openAboutModalBtn" title="Project Documentation & Objectives">
                         <i class="fa-solid fa-circle-info"></i>
@@ -210,19 +195,10 @@
                 {% block content %}{% endblock %}
             </main>
 
-            <!-- Footer -->
-            <footer class="app-footer">
-                <div class="footer-left">
-                    <strong>WIDS</strong> &bull; Wandering Intrusion Detection System
-                </div>
-                <div class="footer-right">
-                    <span>Local monitoring console &bull; Live discovery with sample fallback</span>
-                </div>
-            </footer>
         </div>
     </div>
 
-    <!-- Project Information Modal (Covers SMART Objectives, Scope, Problem, Limitations) -->
+    <!-- Project Information Modal -->
     <div class="modal-overlay" id="aboutModal">
         <div class="modal-card">
             <div class="modal-header">
