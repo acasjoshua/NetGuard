@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign In - NetGuard Local Network Monitoring & IDS</title>
+    <title>Sign in - WIDS</title>
     <!-- Modern Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="{% static 'css/netguard_theme.css' %}">
     <!-- Login Page CSS -->
     <link rel="stylesheet" href="{% static 'css/login/login.css' %}">
+    <link rel="stylesheet" href="{% static 'css/wids_theme.css' %}">
 </head>
 <body class="theme-dark">
     <div class="auth-wrapper">
@@ -23,8 +24,8 @@
                 <div class="auth-logo-icon">
                     <i class="fa-solid fa-shield-halved"></i>
                 </div>
-                <h1 class="auth-title">Net<span>Guard</span></h1>
-                <p class="auth-subtitle">“See Your Network. Detect the Threats.”</p>
+                <h1 class="auth-title">WIDS<span>Lab</span></h1>
+                <p class="auth-subtitle">Wandering Intrusion Detection System</p>
             </div>
 
             {% if messages %}
@@ -75,23 +76,16 @@
                 </div>
 
                 <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem;">
-                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Sign In to NetGuard
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Sign in to WIDS
                 </button>
             </form>
 
-            <!-- Quick Demo Credentials helper -->
+            <!-- Development Account helper -->
             <div class="demo-credentials-box">
                 <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 0.25rem;">
-                    <i class="fa-solid fa-key" style="color: var(--brand-cyan);"></i> Quick-Fill Demo Accounts:
+                    <i class="fa-solid fa-key" style="color: var(--brand-cyan);"></i> Development sign-in:
                 </div>
-                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                    <button type="button" class="demo-badge-btn" onclick="fillCredentials('acas', 'acas123')">
-                        <i class="fa-solid fa-user"></i> acas / acas123 (Student Analyst)
-                    </button>
-                    <button type="button" class="demo-badge-btn" onclick="fillCredentials('admin', 'admin123')">
-                        <i class="fa-solid fa-shield"></i> admin / admin123 (Lead Architect)
-                    </button>
-                </div>
+                <div style="color: var(--text-muted);">Use an account created by the seed command or registration page.</div>
             </div>
 
             <div style="text-align: center; margin-top: 1.5rem; font-size: 0.85rem; color: var(--text-muted);">
@@ -100,11 +94,5 @@
         </div>
     </div>
 
-    <script>
-    function fillCredentials(u, p) {
-        document.getElementById('usernameInput').value = u;
-        document.getElementById('passwordInput').value = p;
-    }
-    </script>
 </body>
 </html>
