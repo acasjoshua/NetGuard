@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand
+import os
 from django.contrib.auth.models import User
 from apps.user_profile.models import Profile
 from apps.user_settings.models import UserSettings
@@ -23,9 +24,12 @@ class Command(BaseCommand):
             }
         )
         if created:
-            admin_user.set_password('admin123')
+            admin_password = os.environ.get("NETGUARD_ADMIN_PASSWORD", "change-me-now")
+            admin_user.set_password(admin_password)
             admin_user.save()
-            self.stdout.write(self.style.SUCCESS('Created admin user (admin / admin123)'))
+            self.stdout.write(self.style.SUCCESS(
+                'Created admin user (set NETGUARD_ADMIN_PASSWORD for deployment)'
+            ))
 
         Profile.objects.get_or_create(
             user=admin_user,
@@ -67,9 +71,12 @@ class Command(BaseCommand):
             }
         )
         if created:
-            acas_user.set_password('acas123')
+            acas_password = os.environ.get("NETGUARD_ACAS_PASSWORD", "change-me-now")
+            acas_user.set_password(acas_password)
             acas_user.save()
-            self.stdout.write(self.style.SUCCESS('Created user acas (acas / acas123)'))
+            self.stdout.write(self.style.SUCCESS(
+                'Created acas user (set NETGUARD_ACAS_PASSWORD for deployment)'
+            ))
 
         Profile.objects.get_or_create(
             user=acas_user,
