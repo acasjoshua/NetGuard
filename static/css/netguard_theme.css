@@ -301,11 +301,6 @@ a:hover {
     box-shadow: 0 0 10px rgba(239, 68, 68, 0.45);
 }
 
-.test-badge {
-    background: linear-gradient(135deg, var(--brand-cyan), var(--brand-indigo));
-    color: #fff;
-}
-
 /* Sidebar Footer User Widget */
 .sidebar-footer {
     padding: 1rem 1.25rem;
@@ -1188,20 +1183,6 @@ input:checked + .switch-slider:before {
 /* ==========================================================================
    Footer
    ========================================================================== */
-.app-footer {
-    height: 52px;
-    background-color: var(--bg-secondary);
-    border-top: 1px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 2rem;
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
 /* ==========================================================================
    Keyframe Animations
    ========================================================================== */
