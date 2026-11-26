@@ -292,6 +292,35 @@ class WIDSIntrusionDetectionTests(TestCase):
         dashboard = self.client.get(reverse('home:home'))
         self.assertContains(dashboard, 'data-refresh-interval="10"')
 
+    def test_sidebar_alert_count_includes_only_unresolved_alerts(self):
+        self.client.login(username='testanalyst', password='password123')
+        for status in (
+            SecurityAlert.Status.NEW,
+            SecurityAlert.Status.ACKNOWLEDGED,
+            SecurityAlert.Status.RESOLVED,
+        ):
+            SecurityAlert.objects.create(
+                network=self.network,
+                title=f'{status.label} sidebar test',
+                message='Sidebar count test.',
+                status=status,
+            )
+
+        response = self.client.get(reverse('home:alerts'))
+        expected_count = SecurityAlert.objects.filter(
+            network=self.network,
+            status__in=[
+                SecurityAlert.Status.NEW,
+                SecurityAlert.Status.ACKNOWLEDGED,
+            ],
+        ).count()
+
+        self.assertEqual(response.context['sidebar_alert_count'], expected_count)
+        self.assertContains(
+            response,
+            f'id="sidebarAlertCount">{expected_count}</span>',
+        )
+
     def test_report_generation(self):
         """Scope E.3: Verify generating security report computes dynamically."""
         self.client.login(username='testanalyst', password='password123')
